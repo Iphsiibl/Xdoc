@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -150,6 +151,27 @@ def _cmd_doctor() -> int:
     return 0
 
 
+def _setup_console() -> None:
+    """Windows 控制台默认代码页可能是 cp936/cp1252，直接写中文会抛 UnicodeEncodeError。
+
+    统一改成 UTF-8 输出、无法编码的字符降级为替换符——宁可显示成 ?，也不能因为编码崩掉。
+    MCP 的 serve 模式走 stdio 协议，不碰标准流。
+    """
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            ctypes.windll.kernel32.SetConsoleOutputCP(65001)
+            ctypes.windll.kernel32.SetConsoleCP(65001)
+        except Exception:  # pragma: no cover - 老终端不支持就算了
+            pass
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):  # pragma: no cover - 已被替换的流
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -157,6 +179,9 @@ def main(argv: list[str] | None = None) -> int:
     # --json 是 plugin list 的可选输出
     if args.command == "plugin" and args.plugin_command == "list":
         args.json = False
+
+    if args.command != "serve":
+        _setup_console()
 
     try:
         if args.command == "read":

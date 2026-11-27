@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from conftest import require, sample
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,3 +71,30 @@ def test_doctor_runs():
     proc = run("doctor")
     assert proc.returncode == 0, proc.stderr
     assert "pymupdf" in proc.stdout
+
+
+def test_read_survives_non_utf8_console_encoding(tmp_path):
+    """控制台代码页不是 UTF-8 时也不能崩。
+
+    Windows 上 PYTHONIOENCODING=cp1252 时，旧版会直接抛 UnicodeEncodeError。
+    """
+    docx = pytest.importorskip("docx")
+    path = tmp_path / "中文文档.docx"
+    document = docx.Document()
+    document.add_heading("中文标题", 0)
+    document.add_paragraph("正文内容，带中文标点：你好，世界。")
+    document.save(path)
+
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "cp1252"
+    env["PYTHONPATH"] = str(ROOT / "src")
+    proc = subprocess.run(
+        [sys.executable, "-m", "xdoc", "read", str(path), "--format", "text"],
+        capture_output=True,
+        env=env,
+        cwd=str(ROOT),
+    )
+    assert proc.returncode == 0, proc.stderr.decode("utf-8", "replace")
+    out = proc.stdout.decode("utf-8", "replace")
+    assert "中文标题" in out
+    assert "你好，世界。" in out
