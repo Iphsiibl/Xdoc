@@ -1,0 +1,38 @@
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "确认发布到 PyPI（输入 xdoc）"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write # PyPI trusted publishing（OIDC）
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/xdoc/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: 手动触发时的确认
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: test "${{ inputs.confirm }}" = "xdoc" || (echo "确认串不对，已取消" && exit 1)
+
+      - name: 跑测试
+        run: uv sync --extra dev && uv run pytest
+
+      - name: 发布前自检（干净环境安装 + doctor 绿 + README 一致）
+        run: uv run python tools/release_check.py
+
+      - name: 发布到 PyPI
+        run: uv publish --trusted-publishing always

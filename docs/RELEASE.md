@@ -45,14 +45,32 @@ uv run python tools/release_check.py --from-index # 发布后：从 PyPI 按包�
 
 ## 3. 上传
 
-需要 PyPI API token（**用户侧凭据，助手不代管**）：
+两条路，任选一条。
+
+### A. CI 自动发布（推荐，无需在本机保存密钥）
+
+仓库已带 `.github/workflows/publish.yml`：推送 `v*` 标签或手动触发 → 跑测试 → 跑发布前自检 →
+`uv publish --trusted-publishing always`（PyPI OIDC，仓库里不存任何 token）。
+
+一次性配置（在 https://pypi.org/manage/project/xdoc/settings/publishing/ 添加 Trusted Publisher）：
+
+- Provider：`GitHub`
+- Repository：`Iphsiibl/Xdoc`
+- Workflow name：`publish.yml`
+- Environment name：`pypi`
+
+然后 `git tag v0.1.0 && git push origin v0.1.0` 即可。
+
+### B. 本机用 API token 发布（一步到位）
+
+需要 PyPI API token（**用户侧凭据，助手不代管、不落盘**）：
 
 ```bash
-# 方式 A：环境变量（推荐，token 只留在当前 shell）
-$env:UV_PUBLISH_TOKEN = "pypi-xxxxxxxx"
+# 方式 B1：当前 shell 里临时设置，token 不进命令历史以外的任何地方
+$env:UV_PUBLISH_TOKEN = "pypi-xxxxxxxx"   # PowerShell
 uv publish
 
-# 方式 B：交互式，输入用户名与 token
+# 方式 B2：交互式输入用户名与 token
 uv publish --username <你的用户名>
 ```
 
