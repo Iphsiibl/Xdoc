@@ -33,17 +33,4 @@ jobs:
         run: uv run pytest
 
       - name: CLI 冒烟（读一个自造的 docx）
-        run: |
-          uv run python - <<'PY'
-          import docx, pathlib, subprocess, sys
-          d = docx.Document()
-          d.add_heading("冒烟测试", 0)
-          d.add_paragraph("正文内容，用于验证 xdoc read 的最小闭环。")
-          p = pathlib.Path("smoke.docx"); d.save(p)
-          out = subprocess.run([sys.executable, "-m", "xdoc", "read", str(p), "--format", "text"],
-                               capture_output=True, text=True, encoding="utf-8")
-          print(out.stdout)
-          assert "冒烟测试" in out.stdout, out.stderr
-          assert out.returncode == 0
-          print("smoke ok")
-          PY
+        run: uv run python tools/smoke_cli.py
