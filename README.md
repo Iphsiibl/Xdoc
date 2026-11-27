@@ -145,6 +145,9 @@ sha256: ...
 证据文件：`docs/release_evidence.json`；发布后用 `uv run python tools/release_check.py --from-index`
 从 PyPI 按包名再验一遍真实安装路径。详见 [`docs/RELEASE.md`](docs/RELEASE.md)。
 
+CI 侧也已独立跑通同一套自检：GitHub Actions 的 CI 工作流在 ubuntu-latest + windows-latest 上全绿，
+Publish 工作流里的「跑测试」与「发布前自检（干净环境安装 + doctor 绿 + README 一致）」两步均通过。
+
 ## 已知限制
 
 - **PDF 无框线表格不会被还原成表格**（正文文字仍完整保留，词级保留率 1.0）。

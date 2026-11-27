@@ -45,7 +45,20 @@ uv run python tools/release_check.py --from-index # 发布后：从 PyPI 按包�
 
 ## 3. 上传
 
-两条路，任选一条。
+### 3.1 CI 现状（已实测，非推测）
+
+| 工作流 | 运行 | 结果 |
+| --- | --- | --- |
+| CI（ubuntu-latest + windows-latest） | CI #5，commit `260ae69` | **Success**（2 个 job 全绿，30s） |
+| Publish | Publish #4，commit `260ae69` | 跑测试 ✅、发布前自检 ✅、**「发布到 PyPI」❌ exit code 2** |
+
+Publish 唯一的失败点是最后一步的 OIDC 取 token：GitHub Actions 侧的日志结论是
+`error: Failed to obtain token for trusted publishing / cause: No OIDC token discovered`
+（`uv publish` 对这种错误返回 exit code 2）——说明 PyPI 侧还没登记 Trusted Publisher。
+在此之前，`uv run pytest` 与 `uv run python tools/release_check.py` 在 CI 里都已通过，
+即「干净机器可安装 + doctor 绿 + README 命令一致」这条 done 标准已由 CI 独立验证。
+
+### 3.2 两条上传路径，任选一条
 
 ### A. CI 自动发布（推荐，无需在本机保存密钥）
 
@@ -99,4 +112,7 @@ uv run python tools/release_check.py --from-index
 
 - 打包成一条命令注册到所有 MCP 客户端（吸收 anymd 的 `setup` 思路）。
 - 把 MinerU / docling 做成同级插件，给愿意装 2GB 依赖的人更强的版面与表格还原。
-- 公开仓库地址补进 `pyproject.toml` 的 `[project.urls]`（有仓库后一行即可）。
+- 公开仓库地址已补进 `pyproject.toml` 的 `[project.urls]`（Repository/Issues = https://github.com/Iphsiibl/Xdoc）。
+- CI 里踩过的坑（都已修并复跑通过）：`astral-sh/setup-uv` 没有 `v10` 主标签（要写精确版本 `v10.4.0`）；
+  windows-latest 的默认 shell 是 pwsh，不支持 bash heredoc（冒烟测试已改成 `tools/smoke_cli.py`）；
+  Windows 控制台代码页非 UTF-8 会让中文输出抛 `UnicodeEncodeError`（`cli.py` 里 `_setup_console()` 处理）。

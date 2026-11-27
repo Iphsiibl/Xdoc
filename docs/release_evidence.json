@@ -19,12 +19,12 @@
     {
       "name": "sdist 不含样本/对比产物",
       "ok": true,
-      "detail": "xdoc-0.1.0.tar.gz 177KB"
+      "detail": "xdoc-0.1.0.tar.gz 179KB"
     },
     {
       "name": "干净环境安装成功",
       "ok": true,
-      "detail": "C:\\Users\\Windows\\AppData\\Local\\Temp\\xdoc-release-olxiqeli\\bin\\xdoc.exe"
+      "detail": "C:\\Users\\Windows\\AppData\\Local\\Temp\\xdoc-release-sa44ycz_\\bin\\xdoc.exe"
     },
     {
       "name": "安装后 --version 可用",
