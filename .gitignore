@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# 虚拟环境与工具缓存
+.venv/
+.uv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 可再生成的样本与对比产物（用 tools/fetch_samples.py、tools/compare.py 重建）
+samples/
+compare/
+
+# 本地配置
+.env
+*.local.json

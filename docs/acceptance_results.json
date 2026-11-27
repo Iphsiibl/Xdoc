@@ -1,0 +1,423 @@
+{
+  "runs": 3,
+  "quick": false,
+  "fidelity": [
+    {
+      "sample": "pdf/en_arxiv_attention.pdf",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9831,
+      "median_s": 2.18,
+      "spread": [
+        0.1,
+        [
+          2.1,
+          2.18,
+          2.2
+        ]
+      ],
+      "table_rows": 44,
+      "anchors": 15,
+      "anymd_token_recall": 0.9836,
+      "anymd_s": 2.17
+    },
+    {
+      "sample": "pdf/en_dummy.pdf",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 1.0,
+      "median_s": 0.0,
+      "spread": [
+        0.0,
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "table_rows": 0,
+      "anchors": 1,
+      "anymd_token_recall": 1.0,
+      "anymd_s": 1.74
+    },
+    {
+      "sample": "pdf/en_paper_tracemonkey.pdf",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9783,
+      "median_s": 3.2,
+      "spread": [
+        0.54,
+        [
+          3.16,
+          3.2,
+          3.7
+        ]
+      ],
+      "table_rows": 0,
+      "anchors": 14,
+      "anymd_token_recall": 0.9607,
+      "anymd_s": 2.16
+    },
+    {
+      "sample": "pdf/zh_wiki_microsoft.pdf",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9818,
+      "median_s": 5.93,
+      "spread": [
+        0.33,
+        [
+          5.7,
+          5.93,
+          6.03
+        ]
+      ],
+      "table_rows": 8,
+      "anchors": 25,
+      "anymd_token_recall": 0.8768,
+      "anymd_s": 3.16
+    },
+    {
+      "sample": "pdf/zh_wiki_python.pdf",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9632,
+      "median_s": 14.11,
+      "spread": [
+        1.82,
+        [
+          13.04,
+          14.11,
+          14.86
+        ]
+      ],
+      "table_rows": 78,
+      "anchors": 64,
+      "anymd_token_recall": 0.9012,
+      "anymd_s": 3.11
+    },
+    {
+      "sample": "docx/calibre_demo.docx",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9613,
+      "median_s": 0.11,
+      "spread": [
+        0.02,
+        [
+          0.1,
+          0.11,
+          0.12
+        ]
+      ],
+      "table_rows": 33,
+      "anchors": 0,
+      "anymd_token_recall": 0.9816,
+      "anymd_s": 1.87
+    },
+    {
+      "sample": "pptx/poi_SampleShow.pptx",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9688,
+      "median_s": 0.02,
+      "spread": [
+        0.0,
+        [
+          0.02,
+          0.02,
+          0.02
+        ]
+      ],
+      "table_rows": 0,
+      "anchors": 2,
+      "anymd_token_recall": 1.0,
+      "anymd_s": 2.16
+    },
+    {
+      "sample": "pptx/pythonpptx_test.pptx",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 1.0,
+      "median_s": 0.03,
+      "spread": [
+        0.01,
+        [
+          0.03,
+          0.03,
+          0.04
+        ]
+      ],
+      "table_rows": 0,
+      "anchors": 1,
+      "anymd_token_recall": 1.0,
+      "anymd_s": 1.88
+    },
+    {
+      "sample": "xlsx/microsoft_sample.xlsx",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 0.9996,
+      "median_s": 0.25,
+      "spread": [
+        0.05,
+        [
+          0.22,
+          0.25,
+          0.26
+        ]
+      ],
+      "table_rows": 702,
+      "anchors": 1,
+      "anymd_token_recall": 0.8552,
+      "anymd_s": 2.19
+    },
+    {
+      "sample": "html/en_wikipedia.html",
+      "ok": true,
+      "token_recall": 0.9757,
+      "shingle_recall": 0.9039,
+      "median_s": 0.16,
+      "spread": [
+        0.02,
+        [
+          0.16,
+          0.16,
+          0.18
+        ]
+      ],
+      "table_rows": 48,
+      "anchors": 0,
+      "anymd_token_recall": 0.8696,
+      "anymd_s": 1.89
+    },
+    {
+      "sample": "html/zh_wikipedia.html",
+      "ok": true,
+      "token_recall": 0.9927,
+      "shingle_recall": 0.9298,
+      "median_s": 0.84,
+      "spread": [
+        0.23,
+        [
+          0.74,
+          0.84,
+          0.97
+        ]
+      ],
+      "table_rows": 215,
+      "anchors": 0,
+      "anymd_token_recall": 0.9115,
+      "anymd_s": 1.68
+    }
+  ],
+  "traceability": [
+    {
+      "sample": "pdf/en_arxiv_attention.pdf",
+      "kind": "pdf",
+      "expected": 15,
+      "actual": 15,
+      "ok": true
+    },
+    {
+      "sample": "pdf/en_dummy.pdf",
+      "kind": "pdf",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "sample": "pdf/en_paper_tracemonkey.pdf",
+      "kind": "pdf",
+      "expected": 14,
+      "actual": 14,
+      "ok": true
+    },
+    {
+      "sample": "pdf/scanned_en.pdf",
+      "kind": "pdf",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "sample": "pdf/scanned_zh.pdf",
+      "kind": "pdf",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "sample": "pdf/zh_wiki_microsoft.pdf",
+      "kind": "pdf",
+      "expected": 25,
+      "actual": 25,
+      "ok": true
+    },
+    {
+      "sample": "pdf/zh_wiki_python.pdf",
+      "kind": "pdf",
+      "expected": 64,
+      "actual": 64,
+      "ok": true
+    },
+    {
+      "sample": "pptx/poi_SampleShow.pptx",
+      "kind": "pptx",
+      "expected": 2,
+      "actual": 2,
+      "ok": true
+    },
+    {
+      "sample": "pptx/pythonpptx_test.pptx",
+      "kind": "pptx",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    },
+    {
+      "sample": "xlsx/microsoft_sample.xlsx",
+      "kind": "xlsx",
+      "expected": 1,
+      "actual": 1,
+      "ok": true
+    }
+  ],
+  "ocr": [
+    {
+      "sample": "images/zh_easyocr_chinese.jpg",
+      "ok": true,
+      "char_precision": 1.0,
+      "char_recall": 1.0,
+      "char_accuracy": 1.0,
+      "threshold": 0.95,
+      "passed": true,
+      "output": "西\n愚园路\n东\n315\n309\nW\nYuyuan Rd.\nE"
+    },
+    {
+      "sample": "images/en_easyocr_english.png",
+      "ok": true,
+      "char_precision": 1.0,
+      "char_recall": 1.0,
+      "char_accuracy": 1.0,
+      "threshold": 0.95,
+      "passed": true,
+      "output": "Reduce your risk of coronavirus infection:\nClean hands with soap and water\nor alcohol-based hand rub\nCover nose and mouth when coughing and\nsneezing with tissue"
+    },
+    {
+      "sample": "pdf/scanned_zh.pdf",
+      "ok": true,
+      "char_precision": 1.0,
+      "char_recall": 1.0,
+      "char_accuracy": 1.0,
+      "threshold": 0.95,
+      "passed": true,
+      "output": "愚园路\n西\n东\n315\n309\nW\nYuyuan Rd.\nE"
+    },
+    {
+      "sample": "pdf/scanned_en.pdf",
+      "ok": true,
+      "char_precision": 1.0,
+      "char_recall": 1.0,
+      "char_accuracy": 1.0,
+      "threshold": 0.95,
+      "passed": true,
+      "output": "Reduce your risk of coronavirus infection:\nClean hands with soap and water\nor alcohol-based hand rub\nCover nose and mouth when coughing and\nsneezing with tissue"
+    }
+  ],
+  "asr": [
+    {
+      "sample": "audio/zh_funasr_example.wav",
+      "ok": true,
+      "cer": 0.0,
+      "threshold": 0.05,
+      "passed": true,
+      "segments": 1,
+      "asr_start": 0.88,
+      "asr_end": 5.2,
+      "transcript": "欢迎大家来体验达摩院推出的语音识别模型。",
+      "vad_start": 0.95,
+      "vad_end": 5.06,
+      "start_err_s": 0.07,
+      "end_err_s": 0.14,
+      "passed_ts": true
+    },
+    {
+      "sample": "audio/en_jfk.flac",
+      "ok": true,
+      "cer": 0.0435,
+      "threshold": null,
+      "passed": null,
+      "segments": 2,
+      "asr_start": 0.0,
+      "asr_end": 11.0,
+      "transcript": "And so, my fellow Americans, ask not what your country can do for you. Ask what you can do for your country.",
+      "vad_start": 0.33,
+      "vad_end": 10.99,
+      "start_err_s": 0.33,
+      "end_err_s": 0.01,
+      "passed_ts": true
+    }
+  ],
+  "offline": [
+    {
+      "sample": "pdf/zh_wiki_python.pdf",
+      "ok": true,
+      "seconds": 14.33,
+      "chars": 127058,
+      "error": ""
+    },
+    {
+      "sample": "images/zh_easyocr_chinese.jpg",
+      "ok": true,
+      "seconds": 3.93,
+      "chars": 56,
+      "error": ""
+    },
+    {
+      "sample": "audio/zh_funasr_example.wav",
+      "ok": true,
+      "seconds": 63.0,
+      "chars": 57,
+      "error": ""
+    },
+    {
+      "sample": "audio/en_jfk.flac",
+      "ok": true,
+      "seconds": 12.32,
+      "chars": 147,
+      "error": ""
+    }
+  ],
+  "formats": [
+    {
+      "sample": "docx/calibre_demo.docx",
+      "lengths": {
+        "markdown": 10441,
+        "text": 9469,
+        "json": 21246
+      },
+      "ok": true
+    }
+  ],
+  "mcp": [
+    {
+      "tools": [
+        "read"
+      ],
+      "count": 1,
+      "ok": true
+    }
+  ],
+  "budget": [
+    {
+      "sample": "xlsx/microsoft_sample.xlsx",
+      "chunks": 8,
+      "total_chars": 84137,
+      "full_chars": 82919,
+      "coverage": 1.015,
+      "ok": true
+    }
+  ]
+}

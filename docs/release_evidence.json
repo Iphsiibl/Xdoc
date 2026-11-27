@@ -1,0 +1,56 @@
+{
+  "source": "C:\\Users\\Windows\\Desktop\\work\\xdoc\\dist\\xdoc-0.1.0-py3-none-any.whl",
+  "checks": [
+    {
+      "name": "构建 sdist + wheel",
+      "ok": true,
+      "detail": "xdoc-0.1.0-py3-none-any.whl / xdoc-0.1.0.tar.gz"
+    },
+    {
+      "name": "元数据正确",
+      "ok": true,
+      "detail": "name=xdoc version=0.1.0 python=>=3.11 license=MIT"
+    },
+    {
+      "name": "wheel 里有全部代码（含 worker）",
+      "ok": true,
+      "detail": "31 个条目"
+    },
+    {
+      "name": "sdist 不含样本/对比产物",
+      "ok": true,
+      "detail": "xdoc-0.1.0.tar.gz 177KB"
+    },
+    {
+      "name": "干净环境安装成功",
+      "ok": true,
+      "detail": "C:\\Users\\Windows\\AppData\\Local\\Temp\\xdoc-release-wpks3i7c\\bin\\xdoc.exe"
+    },
+    {
+      "name": "安装后 --version 可用",
+      "ok": true,
+      "detail": "xdoc 0.1.0"
+    },
+    {
+      "name": "doctor 绿（核心依赖齐全）",
+      "ok": true,
+      "detail": "核心依赖齐全，基础能力可用。"
+    },
+    {
+      "name": "读得动真实文件",
+      "ok": true,
+      "detail": "marker 命中=True"
+    },
+    {
+      "name": "插件子命令可用",
+      "ok": true,
+      "detail": "干净机器上应显示未安装"
+    },
+    {
+      "name": "README 安装命令与包名一致",
+      "ok": true,
+      "detail": "含 'uv tool install xdoc'=True；其它命令: ['uv tool install --force .', 'uvx xdoc']"
+    }
+  ],
+  "failed": []
+}
