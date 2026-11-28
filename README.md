@@ -137,11 +137,16 @@ sha256: ...
 复现：`uv run python tools/acceptance.py --runs 3` → `docs/acceptance_results.json`，
 `uv run python tools/report.py` → `docs/ACCEPTANCE.md`。
 
-## 发布证据（0.1.0，2026-11-28，已发布到 PyPI）
+## 发布证据（0.1.0 / 0.1.1，2026-11-28，已发布到 PyPI）
 
 已发布：<https://pypi.org/project/xdoc-tools/>（包名 `xdoc-tools`，安装后命令仍是 `xdoc`）
 
-`uv run python tools/release_check.py` 可重跑；下面是它的实际输出：
+| 版本 | 发布方式 | 复验 |
+| --- | --- | --- |
+| 0.1.0 | 本机 API token（`uv publish`） | 干净环境从 PyPI 安装 → `--version` → `doctor` 绿 → 真读 docx → `plugin list`，全 PASS |
+| 0.1.1 | **CI 自动发布**：推 `v0.1.1` 标签 → `publish.yml` 用 PyPI Trusted Publisher（OIDC）上传，仓库里不存任何 token | 同上（干净环境从 PyPI 安装复验），详见 [`docs/RELEASE.md`](docs/RELEASE.md) |
+
+`uv run python tools/release_check.py` 可重跑；下面是 0.1.0 时的实际输出：
 
 | 检查 | 结果 |
 | --- | --- |

@@ -117,6 +117,27 @@ publisher 登记的是 `publish.yml`，自检工作流却是 `trusted-publisher-
 PyPI 匹配不到任何 publisher（报错里的 `valid token` 说明 GitHub 侧 claims 全对）。
 结论：「换 token 自检」这一步必须待在 `publish.yml` 里面 —— 现已如此，那个独立自检工作流已删除。
 
+#### 踩过的坑：残留的 pending publisher 会把整个发布链卡死
+
+把 publisher 加到 `xdoc-tools` 项目下、并把工作流名对齐之后，换 token 还是报 422，但这次是**另一个错**：
+
+```
+HTTP 422 {"errors":[{"code":"invalid-payload","description":"The name 'XdocTools' is too similar to an existing project. ..."}],"message":"Token request failed"}
+```
+
+根因：账号里还留着一条**早先登记的 pending publisher**，项目名写的是 `XdocTools`
+（规范化后是 `xdoctools`，和我们真正发布的 `xdoc-tools` **不是同一个项目名**）。
+pending publisher 的语义是「项目不存在时替我创建它」，于是 PyPI 先匹配到它 → 试图创建项目
+`XdocTools` → 撞上防抢注规则（`xdoc` 当初也是被这条规则拒的）→ 整个换 token 失败。
+
+修法（1 分钟）：打开 <https://pypi.org/manage/account/publishing/>，
+在 **Pending publishers** 里把那条 `XdocTools` 的 **Remove** 点掉。
+删完后 "No pending publishers are currently configured."，
+只留下 "Projects with active publishers → xdoc-tools" 这条，换 token 立刻就通。
+
+> 教训：PyPI 的 pending publisher 与同名项目不是一回事 —— pending 是「按名字预登记」，
+> 只有名字**规范化后完全相同**才会自动转成该项目的 publisher。
+
 ### 3.3 备用：本机用 API token 发布（万一 CI 坏了）
 
 需要 PyPI API token（**用户侧凭据，助手不代管、不落盘**）：

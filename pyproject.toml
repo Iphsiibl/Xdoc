@@ -1,6 +1,6 @@
 [project]
 name = "xdoc-tools"
-version = "0.1.0"
+version = "0.1.1"
 description = "让 Agent 读懂任意文档：本地、离线、忠实的文档转文本层（MCP + CLI）"
 readme = "README.md"
 requires-python = ">=3.11"
