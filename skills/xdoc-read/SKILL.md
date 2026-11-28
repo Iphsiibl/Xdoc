@@ -13,7 +13,8 @@ reject binary input, and images of pages are unreadable without OCR. Always go t
 ```
 read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline=False,
      grep=None, grep_regex=False, grep_context=0, grep_limit=50,
-     ocr="auto", asr="auto", asr_model=None, tables="auto", images="refs", front_matter=True)
+     ocr="auto", asr="auto", asr_model=None, asr_language=None,
+     tables="auto", images="refs", front_matter=True)
 ```
 
 - `path`: a file **or a directory**. A directory is merged into one document; anchors then carry the
@@ -34,6 +35,8 @@ read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline
   `cursor: <next_cursor>` (coordinates are relative to the whole document, so chains are safe).
   Long spreadsheets come back in row-sliced chunks with the header repeated.
 - `ocr` / `asr`: `auto` (default) uses the locally installed plugins; `off` disables them.
+  `asr_language` pins the transcription language (`zh` / `en`); leave it unset to let the engine
+  detect it.
 - `front_matter`: keep `true` — it carries the source path, page/slide/sheet counts, sha256,
   the cache hit/miss flag and the continuation cursor.
 

@@ -111,6 +111,10 @@ def build_server():
             str | None,
             Field(description="ASR 模型名，如 small / base / large-v3"),
         ] = None,
+        asr_language: Annotated[
+            str | None,
+            Field(description="语音转写语言，如 zh / en；省略则自动识别"),
+        ] = None,
         tables: Annotated[
             Literal["auto", "on", "off"],
             Field(description="PDF 表格识别：auto（页面有画线才识别，快）/ on（每页都识别，慢）/ off"),
@@ -149,6 +153,7 @@ def build_server():
             ocr=ocr,
             asr=asr,
             asr_model=asr_model,
+            asr_language=asr_language,
             tables=tables,
             images=images,
             front_matter=front_matter,

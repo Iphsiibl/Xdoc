@@ -124,6 +124,51 @@ def test_doctor_runs():
     assert "pymupdf" in proc.stdout
 
 
+def test_demo_runs_with_bundled_examples(tmp_path):
+    """demo 要能只靠内置示例跑起来（用户还没装插件、也没有样本）。"""
+    proc = run("demo", env_extra={"XDOC_CACHE_DIR": str(tmp_path / "cache")})
+    assert proc.returncode == 0, proc.stderr
+    assert "xdoc demo" in proc.stdout
+    assert "xdoc 示例报告" in proc.stdout          # 内置 Markdown 示例
+    assert "<!-- page 1 -->" in proc.stdout        # 内置 PDF 示例的页锚点
+    assert "xdoc setup" in proc.stdout             # 给出下一步
+
+
+def test_demo_examples_are_packaged():
+    """示例文件必须跟着包走，否则装完 xdoc 就没有 demo 可跑。"""
+    from xdoc.demo import example_paths
+
+    names = {path.name for path in example_paths()}
+    assert {"demo.md", "demo.pdf"} <= names
+
+
+def test_setup_prints_mcp_snippet_without_touching_files():
+    """setup 只打印：不能改用户的 MCP 配置文件。"""
+    proc = run("setup")
+    assert proc.returncode == 0, proc.stderr
+    assert "claude mcp add xdoc" in proc.stdout
+    assert "mcpServers" in proc.stdout
+    assert "只打印" in proc.stdout
+
+
+def test_setup_config_path_points_at_claude_desktop():
+    from xdoc.setup import claude_desktop_config_path, server_command
+
+    path = claude_desktop_config_path()
+    assert path.name == "claude_desktop_config.json"
+    command, args = server_command()
+    assert command
+    assert "serve" in args
+
+
+def test_read_accepts_asr_language(tmp_path):
+    """--asr-language 要能传到 ReadOptions（CLI 侧不再藏着一个转不出来的选项）。"""
+    from xdoc.cli import build_parser
+
+    args = build_parser().parse_args(["read", "a.wav", "--asr-language", "zh"])
+    assert args.asr_language == "zh"
+
+
 def test_read_survives_non_utf8_console_encoding(tmp_path):
     """控制台代码页不是 UTF-8 时也不能崩。
 

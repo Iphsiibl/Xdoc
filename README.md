@@ -7,6 +7,18 @@
 - **只转换，不摘要**：金额、日期、编号原样保留；PDF 按页、PPT 按幻灯片、Excel 按工作表、音视频按时间戳给出锚点，便于精确引用。
 - **运行期全离线**：不调用任何云服务；OCR / ASR / ffmpeg 均为本地可选插件。
 
+## 三条命令跑通
+
+```bash
+uv tool install xdoc-tools
+xdoc demo                  # 用内置示例跑一遍：看 xdoc 读出来长什么样（不用准备样本）
+xdoc read 你的文件.pdf     # 读自己的文件
+xdoc setup                 # 体检 + 打印接给 Agent 的方法（只读，不改你的任何文件）
+```
+
+`xdoc demo` 会用随包附带的示例（一个 Markdown + 一个 PDF）把「结构视图」「检索」都演一遍，
+示例还会复制到临时目录，你可以直接改着玩。
+
 ## 架构
 
 一份内核，两个入口，一个出口 → [架构图（HTML，浏览器直接打开）](docs/diagrams/xdoc-architecture.html)
@@ -82,7 +94,7 @@ Windows 上若客户端不解析 PATH，写绝对路径：`"command": ["C:\\User
 | `pages` | 页/幻灯片/表范围，如 `1-5,8` |
 | `outline` | 只要结构不要正文（标题 + 锚点），适合先摸清文档再定点读 |
 | `grep` / `grep_regex` / `grep_context` / `grep_limit` | 只返回包含关键词的片段（默认字面匹配、忽略大小写） |
-| `ocr` / `asr` / `asr_model` / `tables` / `images` / `front_matter` | 感知与渲染开关，取值见下表与手册 |
+| `ocr` / `asr` / `asr_model` / `asr_language` / `tables` / `images` / `front_matter` | 感知与渲染开关，取值见下表与手册 |
 
 推荐的省 token 四步法：**`read(path, outline=true)` 看结构 → `read(path, grep="关键词")` 只取命中处 → `read(path, pages="7-9")` 取正文 → `read(path, cursor=…)` 续读**。
 
@@ -92,6 +104,8 @@ Windows 上若客户端不解析 PATH，写绝对路径：`"command": ["C:\\User
 ### CLI
 
 ```bash
+xdoc demo                                  # 用内置示例跑一遍（不用准备样本）
+xdoc setup                                 # 体检 + 打印接给 Agent 的方法（只读）
 xdoc read report.pdf                      # Markdown
 xdoc read data.xlsx --format json         # 结构化 JSON
 xdoc read book.pdf --outline              # 只要结构（标题+锚点），正文先不取
@@ -101,6 +115,7 @@ xdoc read slides.pptx --pages 1-5,8
 xdoc read ./docs --outline                # 读整个目录：合并成一份，锚点带文件名
 xdoc grep "Transformer" book.pdf          # 检索：只给命中位置与片段
 xdoc grep "参考文献" ./docs --context 1    # 在整个目录里检索，带上下文行
+xdoc read talk.mp3 --asr-language zh      # 语音转写指定语言（zh / en）
 xdoc read paper.pdf --tables on           # 强制逐页做表格识别（默认 auto：只认有画线的）
 xdoc read paper.pdf --no-cache            # 跳过解析缓存，强制重新解析
 xdoc cache info                           # 看缓存占用

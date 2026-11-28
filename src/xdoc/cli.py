@@ -39,6 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
                           choices=["auto", "on", "off", "zh", "whisper"],
                           help="语音转写：auto（自动挑引擎）/ zh（中文 FunASR）/ whisper（通用 faster-whisper）/ off")
     read_cmd.add_argument("--asr-model", default=None, help="ASR 模型名，如 small / large-v3")
+    read_cmd.add_argument("--asr-language", default=None,
+                          help="语音转写语言，如 zh / en（不填=自动识别）")
     read_cmd.add_argument("--tables", default="auto", choices=["auto", "on", "off"],
                           help="PDF 表格识别：auto（页面有画线才识别，快）/ on（每页都按画线识别）/ off（不识别）")
     read_cmd.add_argument("--no-images", action="store_true", help="不提取内嵌图片")
@@ -62,6 +64,12 @@ def build_parser() -> argparse.ArgumentParser:
     grep_cmd.add_argument("--no-cache", action="store_true", help="跳过解析缓存，强制重新解析")
     grep_cmd.add_argument("-q", "--quiet", action="store_true", help="不显示进度提示")
     grep_cmd.add_argument("-o", "--output", default=None, help="输出到文件而不是标准输出")
+    grep_cmd.add_argument("--asr", default="auto",
+                           choices=["auto", "on", "off", "zh", "whisper"],
+                           help="语音转写：auto（自动挑引擎）/ zh（中文 FunASR）/ whisper（通用 faster-whisper）/ off")
+    grep_cmd.add_argument("--asr-model", default=None, help="ASR 模型名，如 small / large-v3")
+    grep_cmd.add_argument("--asr-language", default=None,
+                           help="语音转写语言，如 zh / en（不填=自动识别）")
 
     plugin_cmd = sub.add_parser("plugin", help="可选引擎插件管理（安装/卸载/查看）")
     plugin_sub = plugin_cmd.add_subparsers(dest="plugin_command", required=True)
@@ -79,6 +87,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor", help="检查环境与依赖")
     sub.add_parser("serve", help="以 stdio 方式启动 MCP 服务")
+    demo_cmd = sub.add_parser("demo", help="用内置示例跑一遍，看 xdoc 到底能干什么")
+    demo_cmd.add_argument("-q", "--quiet", action="store_true", help="不显示进度提示")
+    sub.add_parser("setup", help="体检 + 打印接上 Agent 的方法（只读，不改你的文件）")
 
     cache_cmd = sub.add_parser("cache", help="解析缓存（查看占用 / 清理）")
     cache_sub = cache_cmd.add_subparsers(dest="cache_command", required=True)
@@ -113,6 +124,7 @@ def _cmd_read(args) -> int:
         ocr=args.ocr,
         asr=args.asr,
         asr_model=args.asr_model,
+        asr_language=args.asr_language,
         tables=args.tables,
         images="none" if args.no_images else "refs",
         front_matter=not args.no_front_matter,
@@ -138,6 +150,9 @@ def _cmd_grep(args) -> int:
         max_tokens=args.max_tokens,
         use_cache=not args.no_cache,
         front_matter=True,
+        asr=args.asr,
+        asr_model=args.asr_model,
+        asr_language=args.asr_language,
         search=SearchSpec(
             pattern=args.pattern,
             regex=args.regex,
@@ -205,24 +220,32 @@ def _cmd_plugin(args) -> int:
     return 1
 
 
+def _cmd_demo(args) -> int:
+    from .demo import run_demo
+
+    print(run_demo(quiet=args.quiet))
+    return 0
+
+
+def _cmd_setup() -> int:
+    from .setup import setup_report
+
+    print(setup_report())
+    return 0
+
+
 def _cmd_doctor() -> int:
     import importlib
     import shutil
+
+    from .setup import CORE_DEPENDENCIES
 
     print(f"xdoc {__version__}")
     print(f"python: {sys.executable}")
 
     print("\n核心依赖:")
     missing: list[str] = []
-    for module, label in [
-        ("pymupdf", "PDF"),
-        ("docx", "DOCX"),
-        ("pptx", "PPTX"),
-        ("openpyxl", "XLSX"),
-        ("bs4", "HTML"),
-        ("markdownify", "HTML->Markdown"),
-        ("mcp", "MCP 服务"),
-    ]:
+    for module, label in CORE_DEPENDENCIES:
         try:
             importlib.import_module(module)
             print(f"  [ok]   {module:14s} {label}")
@@ -311,6 +334,10 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_cache(args)
         if args.command == "doctor":
             return _cmd_doctor()
+        if args.command == "demo":
+            return _cmd_demo(args)
+        if args.command == "setup":
+            return _cmd_setup()
         if args.command == "serve":
             from .mcp_server import main as serve_main
 

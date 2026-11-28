@@ -207,3 +207,28 @@ MCP SDK 的一个坑：工具异常到 `CallToolResult(is_error=True)` 的转换
 
 - `xdoc setup`（一键装依赖 + 配好 MCP）、`xdoc demo`（自带样例，不依赖 samples/）。
 - `ReadOptions.asr_language` 有类型了但还没暴露到 CLI/MCP（属加法，单独一轮）。
+
+## 10. 首次上手轮（2026-11-28，第 2 轮 grilling 的 A：让新用户不用问人就能跑起来）
+
+### 问题
+
+新用户拿到 xdoc 之后的第一分钟：不知道装完该敲什么、没有样本可读、不知道 MCP 怎么配。
+之前的入口只有 `xdoc read`（要自己准备文件）和 `xdoc doctor`（只看不说怎么接）。
+
+### 做法
+
+| 新的 | 做什么 | 边界 |
+| --- | --- | --- |
+| `xdoc demo` | 用随包附带的示例（`src/xdoc/examples/demo.md` + `demo.pdf`）跑一遍：全文、结构视图（`--outline`）、检索三种看法；示例复制到临时目录，可直接改 | 只写临时目录，不碰用户文件 |
+| `xdoc setup` | 体检 + 打印接给 Agent 的方法：Claude Code 一行命令、Claude Desktop 的配置路径与 JSON 片段、下一步建议 | **只打印**：MCP 配置要写进 Claude 自己的配置文件，那一步交给用户 |
+| `--asr-language` | 语音转写语言（`zh` / `en`）暴露到 CLI 与 MCP | 之前它只存在于 `ReadOptions`，两边都传不到 → 转写永远只能自动猜 |
+
+### 踩到的坑
+
+- 示例目录**不能叫 `samples/`**：`.gitignore` 里的 `samples/` 会匹配任意层级同名目录，示例会被 git 忽略掉。
+  所以叫 `examples/`，并放进包内（`src/xdoc/examples/`），用 `importlib.resources` 定位。
+- `xdoc setup` 只打印这件事要**在选项里写清楚**，否则用户会以为它没生效（它真的什么都没改）。
+
+### 还没做
+
+- B：缓存与插件解耦（装完 OCR/ASR 插件后同一文件要全文重解析一遍，纯浪费）。

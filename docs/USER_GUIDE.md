@@ -11,8 +11,10 @@
 
 ```bash
 uv tool install xdoc-tools    # 装一次
+xdoc demo                 # 用内置示例跑一遍（不用准备样本）
 xdoc doctor                 # 自检：应打印「核心依赖齐全，基础能力可用。」
 xdoc read report.pdf        # 读一个 PDF，输出 Markdown
+xdoc setup                  # 体检 + 打印接给 Agent 的方法（只读，不改你的文件）
 ```
 
 给 Agent 用：把 xdoc 注册成 MCP 服务（见 [§2.2](#22-mcp给-agent)），Agent 就会多出一个 `read` 工具。
@@ -54,6 +56,15 @@ xdoc doctor
 - **PATH**：`uv tool install` 装到 `%USERPROFILE%\.local\bin`。如果 MCP 客户端不解析 PATH，配置里写绝对路径（见 §2.2）。
 - **旧版 Office**：需要本机装 LibreOffice，`doctor` 会告诉你路径；它不在 PATH 也没关系，xdoc 会自己找。
 
+### 1.4 第一次用：`xdoc demo` 与 `xdoc setup`
+
+| 命令 | 做什么 | 会不会改你的文件 |
+| --- | --- | --- |
+| `xdoc demo` | 用随包附带的示例（一个 Markdown + 一个 PDF）跑一遍：全文、结构视图（`--outline`）、检索三种看法都演给你看；示例会复制到临时目录，你可以直接改着玩 | 不会（只写临时目录） |
+| `xdoc setup` | 体检（依赖、插件、缓存、命令是否可用）+ 打印接给 Agent 的方法：Claude Code 一行命令、Claude Desktop 的配置路径与 JSON 片段 | **不会**（只打印，不写任何配置文件） |
+
+`xdoc setup` 故意只打印：MCP 配置要写进 Claude 自己的配置文件，那一步由你决定。
+
 ---
 
 ## 2. 两种用法
@@ -67,6 +78,8 @@ xdoc read <path> [选项]
 xdoc grep <pattern> <path> [选项]   # 检索：只给出命中的位置与片段
 xdoc plugin list | add <name> | remove <name>
 xdoc cache info | clear          # 解析缓存：看占用 / 清空
+xdoc demo                       # 用内置示例跑一遍（Markdown + PDF）
+xdoc setup                      # 体检 + 打印接给 Agent 的方法（只读）
 xdoc doctor
 xdoc serve                     # 以 stdio 方式启动 MCP 服务
 xdoc --version
@@ -84,6 +97,7 @@ xdoc --version
 | `--ocr` | `auto` / `on` / `off` / `vlm` | `auto` | OCR 开关（需装 `ocr` 插件）。`vlm` 目前与 `on` 等效（本地 doc-VLM 未接入） |
 | `--asr` | `auto` / `on` / `off` / `zh` / `whisper` | `auto` | `zh`=中文 FunASR；`whisper`=通用 faster-whisper；`auto`=自动挑引擎（详见 §4.3） |
 | `--asr-model` | 如 `small` / `large-v3` | 不传=引擎默认 | 不传时 `asr` 用 `small`；`asr-zh` 用 Paraformer-zh |
+| `--asr-language` | 如 `zh` / `en` | 不传=自动识别 | 语音转写的语言（中文音频写 `zh` 更稳） |
 | `--tables` | `auto` / `on` / `off` | `auto` | PDF 表格识别：`auto`=只对有画线的页识别（快）；`on`=逐页识别（慢）；`off`=不识别 |
 | `--no-images` | 开关 | 关 | 不提取内嵌图片（更快、更小输出） |
 | `--no-front-matter` | 开关 | 关 | 不输出元数据头（只对 `markdown` 有意义，`text`/`json` 本来就没有 front-matter） |
@@ -117,8 +131,11 @@ xdoc read ./docs --outline                   # 读整个目录：合并成一份
 xdoc read paper.pdf --tables on               # 强制逐页表格识别
 xdoc read scan.pdf --ocr on                   # 强制 OCR（扫描件）
 xdoc read talk.mp3 --asr zh --asr-model small # 中文转写
+xdoc read talk.mp3 --asr-language zh           # 指定转写语言
 xdoc grep "Transformer" paper.pdf             # 只找命中位置，不给全文
 xdoc grep "参考文献" ./docs --context 1        # 在整个目录里检索，带上下文行
+xdoc demo                                      # 用内置示例跑一遍
+xdoc setup                                     # 打印接给 Agent 的方法
 ```
 
 ### 2.2 MCP（给 Agent）
@@ -163,6 +180,7 @@ Windows 上客户端不解析 PATH 时写绝对路径：
 | `ocr` | string | `auto` | `auto` / `on` / `off` / `vlm` |
 | `asr` | string | `auto` | `auto` / `on` / `off` / `zh` / `whisper` |
 | `asr_model` | string? | 无 | 模型名；不传时 `asr` 用 `small`、`asr-zh` 用 Paraformer-zh |
+| `asr_language` | string? | 无 | 语音转写语言，如 `zh` / `en`；省略则自动识别 |
 | `tables` | string | `auto` | `auto` / `on` / `off` |
 | `images` | string | `refs` | `refs`=图片抽到资产目录并在正文给路径；`none`=不抽 |
 | `front_matter` | bool | `true` | 是否带元数据头 |

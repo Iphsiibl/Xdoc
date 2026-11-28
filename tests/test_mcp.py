@@ -97,6 +97,15 @@ def test_tool_has_outline_parameter():
     assert properties["outline"]["type"] == "boolean"
 
 
+def test_tool_has_asr_language_parameter():
+    """转写语言必须能被指定，否则中文音频只能靠自动猜。"""
+    tools = _list_tools()
+    schema = getattr(tools[0], "inputSchema", None) or getattr(tools[0], "input_schema")
+    properties = schema.get("properties", {})
+    assert "asr_language" in properties
+    assert "zh" in properties["asr_language"].get("description", "")
+
+
 def test_tool_default_budget_is_bounded():
     """MCP 侧默认给个 token 预算，避免一次把 12 万字塞进上下文。"""
     tools = _list_tools()
