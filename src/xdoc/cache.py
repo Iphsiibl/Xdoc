@@ -42,6 +42,9 @@ def cache_key(*, sha256: str, kind: str, options: Any, plugins: Iterable[str]) -
         "ocr": getattr(options, "ocr", None),
         "asr": getattr(options, "asr", None),
         "asr_model": getattr(options, "asr_model", None),
+        # 转写语言会改变结果，必须进键；只对音视频有意义，其它类型的键保持不变
+        "asr_language": (getattr(options, "asr_language", None)
+                         if kind in ("audio", "video") else None),
         "images": getattr(options, "images", None),
         "assets": str(getattr(options, "assets_dir", None) or ""),
         "plugins": sorted(plugins),

@@ -26,7 +26,7 @@ xdoc setup                 # 体检 + 打印接给 Agent 的方法（只读，�
 - **入口**：MCP 工具 `read` 与同源 CLI `xdoc read` 都走 `api.read_document`。
 - **内核**：`detect` 判类型 → `converters/*` 忠实解析 → 中间表示 `Document / Section / Block`。
 - **出口**：`max_tokens` 预算切分 + `cursor` 续读，渲染成 Markdown / 纯文本 / JSON。
-- **解析缓存**：按文件内容 sha256 + 解析选项 + 已装插件命中缓存，重复读同一份文件几乎瞬时（实测 2.49s → 0.02s）；缓存键不含页码筛选，所以切页不用重新解析。
+- **解析缓存**：按文件内容 sha256 + 解析选项命中缓存，重复读同一份文件几乎瞬时（实测 2.49s → 0.02s）；缓存键不含页码筛选，所以切页不用重新解析；插件按需进键，装了 ffmpeg 也不会让读过的 PDF、Word 全部失效。
 - **可选插件**：OCR / ASR / ffmpeg 跑在隔离 venv 里；图片与抽帧落到资产目录。
 
 📖 **完整使用手册**（安装、参数表、输出契约、插件、按任务查、故障排查）→ [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
+from conftest import require, sample
 from xdoc.api import read_document
 from xdoc.cache import cache_key, cache_root, clear, usage
 from xdoc.options import ReadOptions
@@ -21,6 +24,16 @@ def _md(tmp_path, name: str, body: str):
     path = tmp_path / name
     path.write_text(body, encoding="utf-8")
     return path
+
+
+def test_cache_key_separates_asr_language():
+    """转写语言会改变结果，键必须跟着变（否则换个语言读到旧语言的转写）。"""
+    zh = cache_key(sha256="x", kind="audio", options=ReadOptions(asr_language="zh"), plugins=[])
+    en = cache_key(sha256="x", kind="audio", options=ReadOptions(asr_language="en"), plugins=[])
+    assert zh != en
+    # 非音视频不受影响，键保持稳定（不然所有文件的缓存会一次性作废）
+    assert (cache_key(sha256="x", kind="pdf", options=ReadOptions(asr_language="zh"), plugins=[])
+            == cache_key(sha256="x", kind="pdf", options=ReadOptions(asr_language="en"), plugins=[]))
 
 
 def test_second_read_hits_cache(tmp_path, isolated_cache):
@@ -80,3 +93,50 @@ def test_pages_filter_still_applies_on_cache_hit(tmp_path, isolated_cache):
     doc = read_document(path, ReadOptions(pages="1"))
     assert doc.meta["cache"] == "hit"
     assert len(doc.sections) == 1
+
+
+def _fake_plugin(plugin_dir: Path, name: str) -> None:
+    """装一个「假插件」：只放标记文件，用来测缓存键跟插件的关系。"""
+    (plugin_dir / name).mkdir(parents=True, exist_ok=True)
+    (plugin_dir / name / ".installed").write_text("", encoding="utf-8")
+
+
+def test_unrelated_plugin_does_not_invalidate_cache(tmp_path, isolated_cache):
+    """装一个跟文档无关的插件，不该逼你把文档重新解析一遍。"""
+    plugin_dir = tmp_path / "plugins"
+    path = _md(tmp_path, "a.md", "# 标题\n\n正文\n")
+    options = ReadOptions(plugin_dir=str(plugin_dir))
+
+    first = read_document(path, options)
+    assert first.meta["cache"] == "miss"
+
+    _fake_plugin(plugin_dir, "media")   # 装了 ffmpeg
+    again = read_document(path, options)
+    assert again.meta["cache"] == "hit"
+    assert again.text == first.text
+
+
+def test_pdf_base_parse_is_reused_after_installing_ocr(tmp_path, isolated_cache, monkeypatch):
+    """PDF 分两层缓存：装 OCR 插件后不用把整份 PDF 重新解析。"""
+    pdf = require(sample("pdf", "en_dummy.pdf"))
+    plugin_dir = tmp_path / "plugins"
+    options = ReadOptions(plugin_dir=str(plugin_dir))
+
+    calls: list[str] = []
+    import xdoc.api as api
+
+    real_convert = api.convert
+
+    def counting_convert(path, opts, assets):
+        calls.append(str(path))
+        return real_convert(path, opts, assets)
+
+    monkeypatch.setattr(api, "convert", counting_convert)
+
+    read_document(pdf, options)
+    assert len(calls) == 1
+
+    _fake_plugin(plugin_dir, "ocr")     # 装了 OCR
+    doc = read_document(pdf, options)
+    assert len(calls) == 1, "装了 OCR 之后不该重新解析 PDF"
+    assert doc.meta["cache"] == "hit"

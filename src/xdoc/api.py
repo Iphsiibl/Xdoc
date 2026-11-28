@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 from .assets import AssetStore
@@ -18,7 +19,7 @@ from .errors import XdocError
 from .ir import Block, Document, Section
 from .options import ReadOptions, apply_budget, notify
 from .outline import build_outline
-from .plugins import PLUGINS, PluginManager
+from .plugins import PluginManager
 from .render import render
 from .search import apply_search
 
@@ -84,10 +85,27 @@ def _ocr_pdf_pages(doc: Document, path: Path, options: ReadOptions) -> None:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def _installed_plugins(options: ReadOptions) -> list[str]:
-    """已装插件清单：装没装会影响解析结果，必须进缓存键。"""
+def _relevant_plugins(kind: str, options: ReadOptions) -> list[str]:
+    """只有真会影响这类文档的插件，才进缓存键。
+
+    早先进键的是「全部已装插件」：装一个 ffmpeg 就会让所有 PDF、Word 的缓存一起失效，
+    你不得不把读过的文件重新解析一遍（64 页的 PDF 要 16 秒）。
+    现在按类型和开关算：
+
+    - pdf / image：只有开 OCR 时才看 ocr 插件；
+    - audio / video：抽帧、抽音轨、时长都靠 media，转写靠 asr；
+    - 其它类型（Word / Excel / PPT / HTML / Markdown…）：不依赖任何插件。
+    """
     manager = PluginManager(Path(options.plugin_dir) if options.plugin_dir else None)
-    return [name for name in PLUGINS if manager.is_installed(name)]
+    wanted: list[str] = []
+    if kind in ("pdf", "image"):
+        if options.ocr != "off":
+            wanted.append("ocr")
+    elif kind in ("audio", "video"):
+        wanted.append("media")
+        if options.asr != "off":
+            wanted.extend(["asr", "asr-zh"])
+    return [name for name in wanted if manager.is_installed(name)]
 
 
 def _collect_files(root: Path) -> tuple[list[Path], list[dict]]:
@@ -202,7 +220,8 @@ def _read_document(path: str | Path, options: ReadOptions | None, *, strict_page
                         enabled=options.images != "none")
     kind = detect_kind(p)
     sha = file_sha256(p)
-    key = cache_key(sha256=sha, kind=kind, options=options, plugins=_installed_plugins(options))
+    plugins = _relevant_plugins(kind, options)
+    key = cache_key(sha256=sha, kind=kind, options=options, plugins=plugins)
     root = cache_root()
 
     doc = cache_load(root, key) if options.use_cache else None
@@ -214,20 +233,7 @@ def _read_document(path: str | Path, options: ReadOptions | None, *, strict_page
         doc.meta["cache"] = "hit"
         _notify(options, f"命中解析缓存: {p.name}")
     else:
-        _notify(options, f"正在解析: {p.name}（可能要十几秒）…")
-        doc = convert(p, options, assets)
-        doc.source = str(p.resolve())
-        doc.meta.setdefault("sha256", sha)
-        doc.meta.setdefault("bytes", p.stat().st_size)
-        doc.meta.setdefault("assets_root", str(assets.root))
-
-        if doc.kind == "pdf" and doc.meta.get("needs_ocr") and options.ocr != "off":
-            _ocr_pdf_pages(doc, p, options)
-
-        doc.meta["cache"] = "miss"
-        if options.use_cache:
-            cache_store(root, key, doc)
-        _notify(options, f"解析完成: {len(doc.sections)} 节 / {doc.chars} 字符")
+        doc = _parse_document(p, options, kind, sha, assets, root, key)
 
     # 页码筛选放在缓存之后：缓存里存的是未筛选的全文，切页不用重新解析
     if options.pages:
@@ -236,6 +242,56 @@ def _read_document(path: str | Path, options: ReadOptions | None, *, strict_page
         doc = apply_search(doc, options.search)
     elif options.outline:
         doc = build_outline(doc)
+    return doc
+
+
+def _parse_document(p: Path, options: ReadOptions, kind: str, sha: str,
+                    assets: AssetStore, root: Path, key: str) -> Document:
+    """没命中缓存时的解析。
+
+    PDF 走**两层缓存**：基础解析（不含 OCR）与 OCR 增强分开存。
+    这样装完 OCR 插件再读同一份 PDF，只需要补 OCR 那一段，
+    不用把整份文档重新解析一遍（64 页的 PDF 要 16 秒）。
+
+    其它类型只有一层：它们的解析结果本来就依赖插件，只能整体重做。
+    """
+    base_options = options
+    base_key: str | None = None
+    if kind == "pdf" and options.ocr != "off":
+        base_options = replace(options, ocr="off")
+        base_key = cache_key(sha256=sha, kind=kind, options=base_options, plugins=[])
+
+    doc: Document | None = None
+    if base_key is not None and options.use_cache:
+        doc = cache_load(root, base_key)
+
+    if doc is None:
+        _notify(options, f"正在解析: {p.name}（可能要十几秒）…")
+        doc = convert(p, base_options, assets)
+        if base_key is not None and options.use_cache:
+            cache_store(root, base_key, doc)
+        reused = False
+    else:
+        reused = True
+
+    doc.source = str(p.resolve())
+    doc.meta.setdefault("sha256", sha)
+    doc.meta.setdefault("bytes", p.stat().st_size)
+    doc.meta.setdefault("assets_root", str(assets.root))
+
+    ocr_applied = False
+    if doc.kind == "pdf" and doc.meta.get("needs_ocr") and options.ocr != "off":
+        _ocr_pdf_pages(doc, p, options)
+        ocr_applied = True
+
+    # 基础条目就是最终结果时不必再存一份（PDF 的 OCR 没派上用场就是这种情况）
+    if options.use_cache and (base_key is None or ocr_applied):
+        cache_store(root, key, doc)
+    doc.meta["cache"] = "hit" if reused and not ocr_applied else "miss"
+    if reused and not ocr_applied:
+        _notify(options, f"命中解析缓存: {p.name}")
+    else:
+        _notify(options, f"解析完成: {len(doc.sections)} 节 / {doc.chars} 字符")
     return doc
 
 

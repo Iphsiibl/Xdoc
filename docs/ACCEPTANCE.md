@@ -12,17 +12,17 @@ openpyxl/BeautifulSoup 独立抽取，与被测引擎无关。Excel 的日期时
 
 | 样本 | xdoc token_recall | xdoc shingle | anymd token_recall | xdoc 中位耗时 | anymd 耗时 |
 | --- | --- | --- | --- | --- | --- |
-| pdf/en_arxiv_attention.pdf | 1.0000 | 0.9831 | 0.9836 | 2.34s（1.19s 抖动） | 8.46 |
-| pdf/en_dummy.pdf | 1.0000 | 1.0000 | 1.0 | 0.01s（0.00s 抖动） | 2.09 |
-| pdf/en_paper_tracemonkey.pdf | 1.0000 | 0.9783 | 0.9607 | 4.36s（0.60s 抖动） | 2.77 |
-| pdf/zh_wiki_microsoft.pdf | 1.0000 | 0.9818 | 0.8768 | 7.15s（1.40s 抖动） | 2.72 |
-| pdf/zh_wiki_python.pdf | 1.0000 | 0.9632 | 0.9012 | 16.32s（3.62s 抖动） | 4.71 |
-| docx/calibre_demo.docx | 1.0000 | 0.9613 | 0.9816 | 0.17s（0.07s 抖动） | 2.93 |
-| pptx/poi_SampleShow.pptx | 1.0000 | 0.9688 | 1.0 | 0.05s（0.01s 抖动） | 2.29 |
-| pptx/pythonpptx_test.pptx | 1.0000 | 1.0000 | 1.0 | 0.02s（0.00s 抖动） | 3.59 |
-| xlsx/microsoft_sample.xlsx | 1.0000 | 0.9996 | 0.8552 | 0.40s（0.14s 抖动） | 2.48 |
-| html/en_wikipedia.html | 0.9757 | 0.9039 | 0.8696 | 0.25s（0.11s 抖动） | 2.51 |
-| html/zh_wikipedia.html | 0.9927 | 0.9298 | 0.9115 | 1.42s（0.56s 抖动） | 2.78 |
+| pdf/en_arxiv_attention.pdf | 1.0000 | 0.9831 | 0.9836 | 2.75s（0.65s 抖动） | 2.01 |
+| pdf/en_dummy.pdf | 1.0000 | 1.0000 | 1.0 | 0.01s（0.00s 抖动） | 1.79 |
+| pdf/en_paper_tracemonkey.pdf | 1.0000 | 0.9783 | 0.9607 | 3.21s（0.35s 抖动） | 1.67 |
+| pdf/zh_wiki_microsoft.pdf | 1.0000 | 0.9818 | 0.8768 | 5.41s（1.08s 抖动） | 2.58 |
+| pdf/zh_wiki_python.pdf | 1.0000 | 0.9632 | 0.9012 | 15.05s（1.52s 抖动） | 3.18 |
+| docx/calibre_demo.docx | 1.0000 | 0.9613 | 0.9816 | 0.10s（0.01s 抖动） | 2.28 |
+| pptx/poi_SampleShow.pptx | 1.0000 | 0.9688 | 1.0 | 0.02s（0.00s 抖动） | 2.14 |
+| pptx/pythonpptx_test.pptx | 1.0000 | 1.0000 | 1.0 | 0.02s（0.01s 抖动） | 2.12 |
+| xlsx/microsoft_sample.xlsx | 1.0000 | 0.9996 | 0.8552 | 0.30s（0.05s 抖动） | 2.7 |
+| html/en_wikipedia.html | 0.9757 | 0.9039 | 0.8696 | 0.16s（0.07s 抖动） | 2.18 |
+| html/zh_wikipedia.html | 0.9927 | 0.9298 | 0.9115 | 0.86s（0.51s 抖动） | 2.5 |
 
 ## 2. 结构可追溯
 
@@ -93,10 +93,10 @@ or al |
 
 | 样本 | 结果 | 耗时 | 输出字符 | 备注 |
 | --- | --- | --- | --- | --- |
-| pdf/zh_wiki_python.pdf | **PASS** | 20.27s | 127058 |  |
-| images/zh_easyocr_chinese.jpg | **PASS** | 9.79s | 56 |  |
-| audio/zh_funasr_example.wav | **PASS** | 80.14s | 57 |  |
-| audio/en_jfk.flac | **PASS** | 14.16s | 147 |  |
+| pdf/zh_wiki_python.pdf | **PASS** | 15.93s | 127058 |  |
+| images/zh_easyocr_chinese.jpg | **PASS** | 4.03s | 56 |  |
+| audio/zh_funasr_example.wav | **PASS** | 67.74s | 57 |  |
+| audio/en_jfk.flac | **PASS** | 11.44s | 147 |  |
 
 ## 6. 输出格式可选
 

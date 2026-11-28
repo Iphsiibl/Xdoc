@@ -7,19 +7,19 @@
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9831,
-      "median_s": 2.34,
+      "median_s": 2.75,
       "spread": [
-        1.19,
+        0.65,
         [
-          2.23,
-          2.34,
-          3.42
+          2.21,
+          2.75,
+          2.86
         ]
       ],
       "table_rows": 44,
       "anchors": 15,
       "anymd_token_recall": 0.9836,
-      "anymd_s": 8.46
+      "anymd_s": 2.01
     },
     {
       "sample": "pdf/en_dummy.pdf",
@@ -30,7 +30,7 @@
       "spread": [
         0.0,
         [
-          0.01,
+          0.0,
           0.01,
           0.01
         ]
@@ -38,108 +38,89 @@
       "table_rows": 0,
       "anchors": 1,
       "anymd_token_recall": 1.0,
-      "anymd_s": 2.09
+      "anymd_s": 1.79
     },
     {
       "sample": "pdf/en_paper_tracemonkey.pdf",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9783,
-      "median_s": 4.36,
+      "median_s": 3.21,
       "spread": [
-        0.6,
+        0.35,
         [
-          4.02,
-          4.36,
-          4.62
+          3.11,
+          3.21,
+          3.46
         ]
       ],
       "table_rows": 0,
       "anchors": 14,
       "anymd_token_recall": 0.9607,
-      "anymd_s": 2.77
+      "anymd_s": 1.67
     },
     {
       "sample": "pdf/zh_wiki_microsoft.pdf",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9818,
-      "median_s": 7.15,
+      "median_s": 5.41,
       "spread": [
-        1.4,
+        1.08,
         [
-          7.05,
-          7.15,
-          8.45
+          5.13,
+          5.41,
+          6.21
         ]
       ],
       "table_rows": 8,
       "anchors": 25,
       "anymd_token_recall": 0.8768,
-      "anymd_s": 2.72
+      "anymd_s": 2.58
     },
     {
       "sample": "pdf/zh_wiki_python.pdf",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9632,
-      "median_s": 16.32,
+      "median_s": 15.05,
       "spread": [
-        3.62,
+        1.52,
         [
-          15.61,
-          16.32,
-          19.22
+          14.49,
+          15.05,
+          16.0
         ]
       ],
       "table_rows": 78,
       "anchors": 64,
       "anymd_token_recall": 0.9012,
-      "anymd_s": 4.71
+      "anymd_s": 3.18
     },
     {
       "sample": "docx/calibre_demo.docx",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9613,
-      "median_s": 0.17,
+      "median_s": 0.1,
       "spread": [
-        0.07,
+        0.01,
         [
-          0.15,
-          0.17,
-          0.22
+          0.09,
+          0.1,
+          0.1
         ]
       ],
       "table_rows": 33,
       "anchors": 0,
       "anymd_token_recall": 0.9816,
-      "anymd_s": 2.93
+      "anymd_s": 2.28
     },
     {
       "sample": "pptx/poi_SampleShow.pptx",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9688,
-      "median_s": 0.05,
-      "spread": [
-        0.01,
-        [
-          0.04,
-          0.05,
-          0.05
-        ]
-      ],
-      "table_rows": 0,
-      "anchors": 2,
-      "anymd_token_recall": 1.0,
-      "anymd_s": 2.29
-    },
-    {
-      "sample": "pptx/pythonpptx_test.pptx",
-      "ok": true,
-      "token_recall": 1.0,
-      "shingle_recall": 1.0,
       "median_s": 0.02,
       "spread": [
         0.0,
@@ -150,66 +131,85 @@
         ]
       ],
       "table_rows": 0,
+      "anchors": 2,
+      "anymd_token_recall": 1.0,
+      "anymd_s": 2.14
+    },
+    {
+      "sample": "pptx/pythonpptx_test.pptx",
+      "ok": true,
+      "token_recall": 1.0,
+      "shingle_recall": 1.0,
+      "median_s": 0.02,
+      "spread": [
+        0.01,
+        [
+          0.01,
+          0.02,
+          0.02
+        ]
+      ],
+      "table_rows": 0,
       "anchors": 1,
       "anymd_token_recall": 1.0,
-      "anymd_s": 3.59
+      "anymd_s": 2.12
     },
     {
       "sample": "xlsx/microsoft_sample.xlsx",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9996,
-      "median_s": 0.4,
+      "median_s": 0.3,
       "spread": [
-        0.14,
+        0.05,
         [
-          0.32,
-          0.4,
-          0.46
+          0.28,
+          0.3,
+          0.33
         ]
       ],
       "table_rows": 702,
       "anchors": 1,
       "anymd_token_recall": 0.8552,
-      "anymd_s": 2.48
+      "anymd_s": 2.7
     },
     {
       "sample": "html/en_wikipedia.html",
       "ok": true,
       "token_recall": 0.9757,
       "shingle_recall": 0.9039,
-      "median_s": 0.25,
+      "median_s": 0.16,
       "spread": [
-        0.11,
+        0.07,
         [
-          0.18,
-          0.25,
-          0.29
+          0.15,
+          0.16,
+          0.22
         ]
       ],
       "table_rows": 48,
       "anchors": 0,
       "anymd_token_recall": 0.8696,
-      "anymd_s": 2.51
+      "anymd_s": 2.18
     },
     {
       "sample": "html/zh_wikipedia.html",
       "ok": true,
       "token_recall": 0.9927,
       "shingle_recall": 0.9298,
-      "median_s": 1.42,
+      "median_s": 0.86,
       "spread": [
-        0.56,
+        0.51,
         [
-          1.24,
-          1.42,
-          1.8
+          0.73,
+          0.86,
+          1.24
         ]
       ],
       "table_rows": 215,
       "anchors": 0,
       "anymd_token_recall": 0.9115,
-      "anymd_s": 2.78
+      "anymd_s": 2.5
     }
   ],
   "traceability": [
@@ -364,28 +364,28 @@
     {
       "sample": "pdf/zh_wiki_python.pdf",
       "ok": true,
-      "seconds": 20.27,
+      "seconds": 15.93,
       "chars": 127058,
       "error": ""
     },
     {
       "sample": "images/zh_easyocr_chinese.jpg",
       "ok": true,
-      "seconds": 9.79,
+      "seconds": 4.03,
       "chars": 56,
       "error": ""
     },
     {
       "sample": "audio/zh_funasr_example.wav",
       "ok": true,
-      "seconds": 80.14,
+      "seconds": 67.74,
       "chars": 57,
       "error": ""
     },
     {
       "sample": "audio/en_jfk.flac",
       "ok": true,
-      "seconds": 14.16,
+      "seconds": 11.44,
       "chars": 147,
       "error": ""
     }
