@@ -82,7 +82,35 @@ Publish 唯一的失败点是最后一步的 OIDC 取 token：GitHub Actions 侧
 ### A. CI 自动发布（推荐，无需在本机保存密钥）
 
 仓库已带 `.github/workflows/publish.yml`：推送 `v*` 标签或手动触发 → 跑测试 → 跑发布前自检 →
+查这一版是否已在 PyPI（是就跳过上传，避免 409）→ 自检 Trusted Publisher（只换 token，不上传）→
 `uv publish --trusted-publishing always`（PyPI OIDC，仓库里不存任何 token）。
+
+另有一个独立工作流 `.github/workflows/trusted-publisher-check.yml`：只做「换 token」自检，
+不发布任何东西；失败时把 PyPI 的原话挂成注解，一眼能看出是 publisher 没激活还是环境名不匹配。
+
+#### 当前卡点（2026-11-28 实测）
+
+自检工作流给出的 PyPI 原话：
+
+```
+HTTP 422 {"errors":[{"code":"invalid-publisher","description":"valid token, but no corresponding publisher (Publisher with matching claims was not found)"}],"message":"Token request failed"}
+```
+
+意思很明确：GitHub 侧的 OIDC token 是有效的（claims 正确：仓库 `Iphsiibl/Xdoc`、工作流 `publish.yml`），
+但 PyPI 上还没有**已激活**的 publisher。原因是 0.1.0 是用 API token 建的包，
+建包时登记的 **Pending publisher（XdocTools）没有自动转成 active**。
+
+**需要人工做的一步**（只有 PyPI 账号持有人能做）：
+
+1. 打开 <https://pypi.org/manage/project/xdoc-tools/settings/publishing/>
+2. 如果那里还挂着 Pending 那条，先 Remove，再重新 Add 一条：
+   - Provider：`GitHub`
+   - Repository：`Iphsiibl/Xdoc`
+   - Workflow filename：`publish.yml`
+   - Environment name：**留空**（= Any；工作流里用的是 `environment: pypi`，Any 也能匹配）
+3. 回到仓库跑一次 `Trusted Publisher 自检` 工作流（Actions → 该工作流 → Run workflow）：
+   绿了就说明以后发布只要「改版本号 + `git tag v0.1.1 && git push origin v0.1.1`」，
+   CI 会用 OIDC 自动发，仓库里不需要任何 token。
 
 一次性配置（在 https://pypi.org/manage/project/xdoc-tools/settings/publishing/ 添加 Trusted Publisher）：
 
