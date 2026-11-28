@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from xdoc.errors import XdocError
 from xdoc.ir import Block, Document, Section
 from xdoc.render import render
 
@@ -70,7 +71,7 @@ def test_json_format_roundtrip():
 def test_unknown_format_raises():
     try:
         render(make_doc(), "yaml")
-    except ValueError as exc:
+    except XdocError as exc:
         assert "yaml" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("未知格式应当报错")

@@ -14,6 +14,7 @@
 - **入口**：MCP 工具 `read` 与同源 CLI `xdoc read` 都走 `api.read_document`。
 - **内核**：`detect` 判类型 → `converters/*` 忠实解析 → 中间表示 `Document / Section / Block`。
 - **出口**：`max_tokens` 预算切分 + `cursor` 续读，渲染成 Markdown / 纯文本 / JSON。
+- **解析缓存**：按文件内容 sha256 + 解析选项 + 已装插件命中缓存，重复读同一份文件几乎瞬时（实测 2.49s → 0.02s）；缓存键不含页码筛选，所以切页不用重新解析。
 - **可选插件**：OCR / ASR / ffmpeg 跑在隔离 venv 里；图片与抽帧落到资产目录。
 
 📖 **完整使用手册**（安装、参数表、输出契约、插件、按任务查、故障排查）→ [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
@@ -69,8 +70,19 @@ xdoc plugin remove ocr        # 卸载（install/download、remove/uninstall 是
 
 Windows 上若客户端不解析 PATH，写绝对路径：`"command": ["C:\\Users\\<你>\\.local\\bin\\xdoc.exe", "serve"]`。
 
-工具参数：`path`、`format`（markdown/text/json）、`max_tokens`、`cursor`、`pages`（如 `1-5,8`）、
-`ocr`、`asr`、`asr_model`、`images`、`front_matter`。
+工具参数（每个参数在 schema 里都带说明和取值范围，Agent 能自己判断怎么传）：
+
+| 参数 | 说明 |
+| --- | --- |
+| `path` | 文件路径，**也可以是目录**（目录里能读的文件会合并成一份） |
+| `format` | `markdown`（默认）/ `text` / `json` |
+| `max_tokens` | 本次返回的 token 上限，**默认 30000**；传 `0` 表示不限；超出即截断并返回 `next_cursor` |
+| `cursor` | 续读游标，把上一步的 `next_cursor` 原样传回 |
+| `pages` | 页/幻灯片/表范围，如 `1-5,8` |
+| `outline` | 只要结构不要正文（标题 + 锚点），适合先摸清文档再定点读 |
+| `ocr` / `asr` / `asr_model` / `tables` / `images` / `front_matter` | 感知与渲染开关，取值见下表与手册 |
+
+推荐的省 token 三步法：**`read(path, outline=true)` 看结构 → `read(path, pages="7-9")` 取正文 → `read(path, cursor=…)` 续读**。
 
 仓库自带 Agent 技能 `skills/xdoc-read/SKILL.md`（复制到 `~/.agents/skills/xdoc-read/` 或 `~/.claude/skills/` 即可用），
 告诉 Agent 什么时候该用这个工具、怎么按锚点引用原文；装上 MCP 与技能后，Agent 会自动选它。
@@ -80,12 +92,19 @@ Windows 上若客户端不解析 PATH，写绝对路径：`"command": ["C:\\User
 ```bash
 xdoc read report.pdf                      # Markdown
 xdoc read data.xlsx --format json         # 结构化 JSON
+xdoc read book.pdf --outline              # 只要结构（标题+锚点），正文先不取
 xdoc read book.pdf --max-tokens 8000      # 超长自动截断并给出 next_cursor
 xdoc read book.pdf --cursor <next_cursor> # 续读
 xdoc read slides.pptx --pages 1-5,8
+xdoc read ./docs --outline                # 读整个目录：合并成一份，锚点带文件名
 xdoc read paper.pdf --tables on           # 强制逐页做表格识别（默认 auto：只认有画线的）
+xdoc read paper.pdf --no-cache            # 跳过解析缓存，强制重新解析
+xdoc cache info                           # 看缓存占用
+xdoc cache clear                          # 清理解析缓存
 xdoc doctor                               # 检查依赖与插件
 ```
+
+CLI 默认不限 token（保持既有习惯），需要预算时自己加 `--max-tokens`；MCP 侧默认给 30000 的预算，避免一次把十几万字塞进上下文。
 
 ## 输出契约
 
@@ -110,8 +129,10 @@ sha256: ...
 ```
 
 - PDF 页锚点 `<!-- page N -->`，PPT `<!-- slide N -->`，Excel `<!-- sheet: 名称 -->`，音视频 `<!-- t=00:00:12 -->`。
+- 读目录时锚点带文件名：`<!-- file:report.pdf page 3 -->`，front-matter 的 `files` 字段列出每个文件的类型与体量，`skipped` 字段说明哪些文件被跳过、为什么。
 - `max_tokens` 截断时，开头的 front-matter 会带 `truncated: true` 与 `next_cursor`。
 - `cursor` 坐标始终相对完整文档，可连续续读（表格按行续，文本按字符续）。
+- front-matter 里的 `cache: hit|miss` 说明这次用的是解析缓存还是重新解析的。
 
 ## 离线与隐私
 
@@ -183,7 +204,7 @@ Publish 工作流里的「跑测试」与「发布前自检（干净环境安装
 - **中文 ASR 首次调用需加载约 1GB 模型**（CPU），单次约 30–60s；之后同一进程内很快。
 - **扫描 PDF 逐页以 200dpi 栅格化后 OCR**，极小字号（<8pt）可能识别不全。
 - 旧版 `.doc/.ppt/.xls` 依赖本机 LibreOffice（`xdoc doctor` 会检查）。
-- 大 PDF 偏慢：64 页中文维基约 14s（表格识别 + 图片提取占大头）。
+- 大 PDF 偏慢：64 页中文维基首次解析约 14s（表格识别 + 图片提取占大头）；解析结果进缓存后，第二次读约 0.02s。
 
 ## 开发
 

@@ -9,7 +9,7 @@ def test_parser_has_expected_commands():
     actions = [a for a in parser._actions if a.dest == "command"]
     assert actions, "没有子命令"
     choices = set(actions[0].choices)
-    assert {"read", "plugin", "doctor", "serve"} <= choices
+    assert {"read", "plugin", "cache", "doctor", "serve"} <= choices
 
 
 def test_plugin_aliases_are_accepted():
@@ -39,3 +39,21 @@ def test_read_options():
     assert args.ocr == "on"
     assert args.asr == "zh"
     assert args.tables == "off"
+
+
+def test_read_outline_and_no_cache_flags():
+    parser = build_parser()
+    args = parser.parse_args(["read", "a.pdf", "--outline", "--no-cache"])
+    assert args.outline is True
+    assert args.no_cache is True
+    plain = parser.parse_args(["read", "a.pdf"])
+    assert plain.outline is False
+    assert plain.no_cache is False
+
+
+def test_cache_subcommands():
+    parser = build_parser()
+    info = parser.parse_args(["cache", "info"])
+    assert info.cache_command == "info"
+    clear = parser.parse_args(["cache", "clear"])
+    assert clear.cache_command == "clear"

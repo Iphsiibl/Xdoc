@@ -11,6 +11,7 @@ import binascii
 from dataclasses import dataclass, field
 from typing import Any
 
+from .errors import XdocError
 from .ir import Block, Document, Section
 
 
@@ -30,6 +31,8 @@ class ReadOptions:
     front_matter: bool = True
     assets_dir: str | None = None
     plugin_dir: str | None = None
+    outline: bool = False           # True = 只给结构（标题+锚点），不给正文
+    use_cache: bool = True          # False = 跳过解析缓存，强制重新解析
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -57,7 +60,7 @@ def decode_cursor(cursor: str) -> tuple[int, int, int]:
         parts = raw.split(":")
         return int(parts[0]), int(parts[1]), int(parts[2]) if len(parts) > 2 else 0
     except (binascii.Error, UnicodeDecodeError, ValueError, IndexError) as exc:
-        raise ValueError(f"无效的 cursor: {cursor!r}") from exc
+        raise XdocError(f"无效的 cursor: {cursor!r}") from exc
 
 
 def _block_text(block: Block) -> str:
@@ -85,7 +88,7 @@ def _rebuild(doc: Document, items: list[tuple[int, int, Block]]) -> Document:
         blocks = buckets.get(si)
         if blocks is None:
             continue
-        sections.append(Section(label=section.label, anchor=section.anchor, blocks=blocks))
+        sections.append(Section(label=section.label, anchor=section.anchor, blocks=blocks, file=section.file))
     return Document(source=doc.source, kind=doc.kind, sections=sections, meta=dict(doc.meta))
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from xdoc.errors import XdocError
 from xdoc.ir import Block, Document, Section
 from xdoc.options import (
     ReadOptions,
@@ -44,7 +45,8 @@ def test_cursor_roundtrip():
 
 
 def test_cursor_rejects_garbage():
-    with pytest.raises(ValueError):
+    # 必须是 XdocError（不是裸 ValueError），否则 CLI 会甩给用户一整页堆栈
+    with pytest.raises(XdocError):
         decode_cursor("not-a-cursor!!")
 
 

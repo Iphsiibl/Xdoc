@@ -39,7 +39,7 @@ def test_missing_file_raises_xdoc_error():
         read_document("C:/definitely/not/here.docx", ReadOptions())
 
 
-def test_directory_raises_xdoc_error(tmp_path):
+def test_empty_directory_raises_xdoc_error(tmp_path):
     with pytest.raises(XdocError):
         read_document(tmp_path, ReadOptions())
 

@@ -11,20 +11,36 @@ reject binary input, and images of pages are unreadable without OCR. Always go t
 ## Tool
 
 ```
-read(path, format="markdown", max_tokens=None, cursor=None, pages=None,
-     ocr="auto", asr="auto", asr_model=None, images="refs", front_matter=True)
+read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline=False,
+     ocr="auto", asr="auto", asr_model=None, tables="auto", images="refs", front_matter=True)
 ```
 
+- `path`: a file **or a directory**. A directory is merged into one document; anchors then carry the
+  file name (`<!-- file:report.pdf page 3 -->`) and the front-matter lists every file that was read
+  (plus the ones that were skipped and why).
+- `outline`: `true` returns only the structure — headings and anchors, no body text. Use it as the
+  first call on a long document to learn its shape, then fetch the parts you need with `pages`.
+  A 64-page Chinese wiki goes from ~126k chars to ~5k (4%).
 - `format`: `markdown` (default, best for reading), `json` (structure/values you must query precisely),
   `text` (plainest).
 - `pages`: page/slide ranges such as `1-5,8` — narrow the read instead of reading a whole book.
-- `max_tokens`: cap the output; when the result is truncated the front-matter carries
-  `truncated: true` and a `next_cursor`. To continue, call `read` again with
+- `max_tokens`: cap the output (default 30000; `0` means unlimited). When the result is truncated the
+  front-matter carries `truncated: true` and a `next_cursor`. To continue, call `read` again with
   `cursor: <next_cursor>` (coordinates are relative to the whole document, so chains are safe).
   Long spreadsheets come back in row-sliced chunks with the header repeated.
 - `ocr` / `asr`: `auto` (default) uses the locally installed plugins; `off` disables them.
-- `front_matter`: keep `true` — it carries the source path, page/slide/sheet counts, sha256 and
-  the continuation cursor.
+- `front_matter`: keep `true` — it carries the source path, page/slide/sheet counts, sha256,
+  the cache hit/miss flag and the continuation cursor.
+
+Errors come back as tool errors (`isError: true`) with the reason in the text (e.g. "文件不存在: …",
+"无效的 cursor: …"). Fix the path or install the missing plugin and retry — never treat an error
+message as document content.
+
+## Recommended order (saves tokens)
+
+1. `read(path, outline=true)` — see the structure.
+2. `read(path, pages="7-9")` — pull only the pages you need.
+3. `read(path, cursor="…")` — continue when the output is still too long.
 
 ## Missing plugins
 
@@ -49,6 +65,7 @@ the source exactly (amounts, dates, IDs). Anchor lines mark the origin of each c
 - PowerPoint: `<!-- slide 2 -->`
 - Excel: `<!-- sheet: 汇总 -->`
 - Audio/video: `<!-- t=00:00:12 -->`
+- Directory read: `<!-- file:report.pdf page 3 -->`
 
 Cite these anchors when answering ("on page 3 of the PDF…", "slide 2 says…"), so the answer can
 be checked against the original. Images and video frames are written next to the document under

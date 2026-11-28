@@ -37,13 +37,14 @@ xdoc read report.pdf        # 读一个 PDF，输出 Markdown
 xdoc doctor
 ```
 
-输出分三段：
+输出分四段：
 
 | 段 | 内容 | 缺失怎么办 |
 | --- | --- | --- |
 | **核心依赖** | `pymupdf`(PDF)、`docx`(DOCX)、`pptx`(PPTX)、`openpyxl`(XLSX)、`bs4`(HTML)、`markdownify`(HTML→MD)、`mcp`(MCP 服务) | 全部随包安装；若显示 `[缺失]`，重装一次 xdoc。**核心依赖有缺失时 doctor 返回 exit 1** |
 | **外部工具（可选）** | LibreOffice（旧版 `.doc/.ppt/.xls`）、ffmpeg（视频抽帧） | 缺失只影响对应格式，不影响其它能力 |
 | **插件（可选）** | `ocr` / `asr` / `asr-zh` / `media` 的安装状态 | 按需安装，见 [§4](#4-插件按需下载随插随用可卸载) |
+| **解析缓存** | 缓存目录、条目数与占用 | 太大就 `xdoc cache clear`（见 [§3.7](#37-解析缓存重复读几乎瞬时)） |
 
 结尾会明确告诉你结论：`核心依赖齐全，基础能力可用。`
 
@@ -64,6 +65,7 @@ CLI 与 MCP **共用同一个内核**（`api.read_document`），同一个文件
 ```bash
 xdoc read <path> [选项]
 xdoc plugin list | add <name> | remove <name>
+xdoc cache info | clear          # 解析缓存：看占用 / 清空
 xdoc doctor
 xdoc serve                     # 以 stdio 方式启动 MCP 服务
 xdoc --version
@@ -74,16 +76,20 @@ xdoc --version
 | 选项 | 取值 | 默认 | 说明 |
 | --- | --- | --- | --- |
 | `--format` | `markdown` / `text` / `json` | `markdown` | 输出格式 |
-| `--max-tokens` | 整数 | 不限 | token 预算；超出即截断，并在 front-matter 给出 `next_cursor` |
+| `--max-tokens` | 整数 | 不限 | token 预算；超出即截断，并在 front-matter 给出 `next_cursor`（`0` = 不限） |
 | `--cursor` | 字符串 | 无 | 续读游标（接上一次的 `next_cursor`） |
 | `--pages` | `1-5,8` | 全部 | 按序号筛选章节：PDF 页 / PPT 幻灯片 / Excel 工作表 |
+| `--outline` | 开关 | 关 | 只输出结构（标题 + 锚点），不要正文；适合先看目录再定点读 |
 | `--ocr` | `auto` / `on` / `off` / `vlm` | `auto` | OCR 开关（需装 `ocr` 插件）。`vlm` 目前与 `on` 等效（本地 doc-VLM 未接入） |
 | `--asr` | `auto` / `on` / `off` / `zh` / `whisper` | `auto` | `zh`=中文 FunASR；`whisper`=通用 faster-whisper；`auto`=自动挑引擎（详见 §4.3） |
 | `--asr-model` | 如 `small` / `large-v3` | `small` | ASR 模型 |
 | `--tables` | `auto` / `on` / `off` | `auto` | PDF 表格识别：`auto`=只对有画线的页识别（快）；`on`=逐页识别（慢）；`off`=不识别 |
 | `--no-images` | 开关 | 关 | 不提取内嵌图片（更快、更小输出） |
 | `--no-front-matter` | 开关 | 关 | 不输出元数据头 |
+| `--no-cache` | 开关 | 关 | 跳过解析缓存，强制重新解析 |
 | `-o, --output` | 文件路径 | 标准输出 | 写文件而不是打印 |
+
+`path` 可以是**目录**：会把目录里所有能读的文件合并成一份文档（锚点带文件名，见 §3.2）。
 
 退出码：`0` 成功；`2` 业务错误（stderr 打印 `错误: …`）；`1` 其它异常；`130` Ctrl+C。
 
@@ -92,9 +98,11 @@ xdoc --version
 ```bash
 xdoc read report.pdf                          # Markdown
 xdoc read data.xlsx --format json             # 结构化 JSON
+xdoc read book.pdf --outline                  # 只要结构（标题+锚点），先不取正文
 xdoc read book.pdf --max-tokens 8000          # 超长自动截断，给出 next_cursor
 xdoc read book.pdf --cursor <next_cursor>     # 续读
 xdoc read slides.pptx --pages 1-5,8           # 只看第 1–5 页和第 8 页
+xdoc read ./docs --outline                   # 读整个目录：合并成一份
 xdoc read paper.pdf --tables on               # 强制逐页表格识别
 xdoc read scan.pdf --ocr on                   # 强制 OCR（扫描件）
 xdoc read talk.mp3 --asr zh --asr-model small # 中文转写
@@ -125,15 +133,16 @@ Windows 上客户端不解析 PATH 时写绝对路径：
 "command": ["C:\\Users\\<你的用户名>\\.local\\bin\\xdoc.exe", "serve"]
 ```
 
-`read` 工具的参数：
+`read` 工具的参数（每个参数在 schema 里都带 `description` 和取值枚举，Agent 不需要猜）：
 
 | 参数 | 类型 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| `path` | string | **必填** | 文件路径（本地文件） |
+| `path` | string | **必填** | 文件路径，**也可以是目录**（目录里能读的文件会合并成一份） |
 | `format` | string | `markdown` | `markdown` / `text` / `json` |
-| `max_tokens` | int? | 不限 | 预算，超出截断并返回 `next_cursor` |
+| `max_tokens` | int | `30000` | 本次返回的 token 上限；**`0` 表示不限**；超出即截断并返回 `next_cursor` |
 | `cursor` | string? | 无 | 续读游标 |
 | `pages` | string? | 无 | 如 `1-5,8` |
+| `outline` | bool | `false` | 只要结构不要正文（标题 + 锚点） |
 | `ocr` | string | `auto` | `auto` / `on` / `off` / `vlm` |
 | `asr` | string | `auto` | `auto` / `on` / `off` / `zh` / `whisper` |
 | `asr_model` | string? | `small` | 模型名 |
@@ -142,7 +151,15 @@ Windows 上客户端不解析 PATH 时写绝对路径：
 | `front_matter` | bool | `true` | 是否带元数据头 |
 
 > MCP 版比 CLI 多一个 `images` 参数；CLI 里用 `--no-images` 等价。
-> 工具描述里已经写清「只转换，不摘要」与插件缺失时的安装命令，Agent 会照着做。
+> **MCP 默认 `max_tokens=30000`**：一次读十几万字会占满模型上下文，所以默认给预算；确实要全文时传 `max_tokens=0`。CLI 默认不限，保持既有习惯。
+> **出错时工具返回 `isError=true`**，正文里写明原因（例如「文件不存在: …」），不会被当成正常结果。
+> 工具描述里已经写清「只转换，不摘要」、省 token 的三步用法与插件缺失时的安装命令，Agent 会照着做。
+
+**省 token 的推荐顺序**：
+
+1. `read(path, outline=true)` —— 只要结构（标题 + 锚点），几十行就能看清整份文档；
+2. `read(path, pages="7-9")` —— 按锚点定位到真正要的那几页；
+3. `read(path, cursor="…")` —— 内容仍太长时按游标续读。
 
 **让 Agent 主动用它**：仓库自带 `skills/xdoc-read/SKILL.md`，复制到 `~/.agents/skills/xdoc-read/`（或 `~/.claude/skills/`）即可；它告诉 Agent 什么时候该用这个工具、怎么按锚点引用原文。
 
@@ -172,12 +189,15 @@ assets_root: C:\Users\me\.local\share\xdoc\assets
 | 字段 | 含义 |
 | --- | --- |
 | `source` | 原文件绝对路径 |
-| `kind` | 识别出的类型（`pdf` / `docx` / `xlsx` / `audio` / `video` …） |
+| `kind` | 识别出的类型（`pdf` / `docx` / `xlsx` / `audio` / `video` / `collection` …） |
 | `sections` / `chars` | 章节数与字符数 |
-| `engine` | 实际使用的转换器（`pymupdf 2.2`、`python-docx`、`python-pptx`、`openpyxl`、`builtin`…） |
+| `engine` | 实际使用的转换器（`pymupdf 2.2`、`python-docx`、`python-pptx`、`openpyxl`、`collection`、`builtin`…） |
 | `sha256` / `bytes` | 原文件指纹与大小，便于确认「读的是哪一份」 |
 | `assets_root` | 图片 / 抽帧的落盘目录 |
+| `cache` | `hit` = 用了解析缓存；`miss` = 这次重新解析的 |
 | 类型专属 | PDF 有 `pages`；Excel 有 `sheets`；音视频有 `duration` / `fps`；OCR 结果带 `avg_score` 置信度 |
+| 读目录时 | `file_count`（读到几个文件）、`files`（每个文件的类型与体量）、`skipped`（哪些文件被跳过、为什么） |
+| `outline` 模式 | `outline: true`，表示这次只给结构 |
 | 截断时 | `truncated: true` 与 `next_cursor` 会出现在这里 |
 
 用 `--no-front-matter` 或 `front_matter=false` 可关闭。
@@ -192,6 +212,7 @@ assets_root: C:\Users\me\.local\share\xdoc\assets
 | 音频 / 视频 | `<!-- t=00:00:00 -->`（整段一个锚点；每条转写自带 `[00:00.880]` 时间戳前缀） |
 | DOCX / HTML / Markdown 等连续文档 | `<!-- doc:0 -->`（整篇一个章节） |
 | 图片 | `<!-- image:0 -->` |
+| 读目录时 | `<!-- file:report.pdf page 3 -->`（前面多一段文件名，JSON 里是 `file` 字段） |
 
 锚点同时出现在 Markdown 与 JSON 里（JSON 中是 `anchor` 字段，值为 `page:3` / `slide:2` / `sheet:销售明细` / `t=00:00:12` 这种原始形式）。
 
@@ -259,6 +280,57 @@ xdoc read book.pdf --max-tokens 8000 --cursor eyJzZWN0aW9uIjoy…
 - **文本按字符续，表格按行续**（表头每次重复给出，方便 Agent 始终看得懂列的含义）；
 - 表格**不会被整块丢掉**——预算不够就按行切；
 - token 估算口径：中文约 1 字 1 token，英文/数字约 3.6 字符 1 token（估算用于切片，不用于计费）。
+
+### 3.5 先看结构：outline 模式
+
+长文档最省 token 的做法不是加预算，而是**先不看正文**：
+
+```bash
+xdoc read zh_wiki_python.pdf --outline
+# ---
+# outline: true
+# ---
+# <!-- page 1 -->
+# # Python（简介）
+# <!-- page 2 -->
+# # 发展历史
+```
+
+每个章节只保留标题（没有标题的章节保留正文首行当提示）与锚点，正文一律不给。
+实测 64 页中文维基：全文 125702 字符 → outline 5251 字符（**4.2%**）。
+看完结构再用 `--pages` 精确取正文，或用 `--cursor` 续读。
+
+MCP 侧对应参数 `outline=true`（`read(path, outline=true)`）。
+
+### 3.6 读目录：一次拿一批文件
+
+```bash
+xdoc read ./docs --outline
+```
+
+- 目录里所有能读的文件（PDF/Office/HTML/文本/图片/音视频…）合并成**一份**文档；
+- 锚点带文件名：`<!-- file:report.pdf page 3 -->`，不会张冠李戴；
+- front-matter 给出 `file_count`、`files`（每个文件的类型、章节数、字符数、是否命中缓存）；
+- 认不出的格式、隐藏文件、临时文件（`~$…`）会被跳过，并在 `skipped` 字段里说明原因——不会静默消失；
+- 目录里一个可读文件都没有时，报错「目录里没有可读的文件」。
+
+> `--pages` 在目录模式下对**每个文件分别生效**（如 `--pages 1-2` = 每个文件的前两页）；token 预算与 `cursor` 则作用在合并后的整份文档上。
+
+### 3.7 解析缓存（重复读几乎瞬时）
+
+第一次读某个文件会解析并把结果缓存起来，之后同样的读法直接命中：
+
+```bash
+xdoc read paper.pdf --tables on     # 第一次：解析（约 2.5s）
+xdoc read paper.pdf --tables on     # 第二次：命中缓存（约 0.02s）
+xdoc cache info                     # 看缓存目录、条目数、占用
+xdoc cache clear                    # 清空
+```
+
+- 缓存键 = **文件内容 sha256** + 影响解析结果的选项（`tables` / `ocr` / `asr` / `images` …）+ xdoc 版本 + 已装插件清单。文件改了或选项变了就自动重新解析，不会读到过期结果。
+- **页码筛选（`--pages`）不参与缓存键**：缓存里存的是未筛选的全文，切页不需要重新解析。
+- 缓存目录：`~/.local/share/xdoc/cache`（可用环境变量 `XDOC_CACHE_DIR` 改）；`--no-cache` 可跳过缓存。
+- front-matter 的 `cache: hit|miss` 说明这次走的是缓存还是重新解析。
 
 ---
 
@@ -450,10 +522,13 @@ xdoc read book.epub
 
 1. **别把原始 PDF 丢给内置 reader**。很多模型不支持 pdf 输入，直接传会失败；必须先转成文本/Markdown。
 2. **先 read，再引用**。输出里的 `<!-- page N -->` 锚点就是引用坐标，回答时带上它。
-3. **看到 `truncated: true` 就续读**：把 `next_cursor` 传回去，直到没有 `next_cursor` 为止（一次对话里可以串好几轮）。
-4. **需要 OCR / 转写 / 抽帧时先装插件**。没装时工具会明确告诉你 `xdoc plugin add ocr` 之类命令，别自己猜。
-5. **想要精确结构就用 `format=json`**，想要好读的文本就用 `markdown`。
-6. 细节见 `skills/xdoc-read/SKILL.md`。
+3. **长文档先 `outline=true`**：几十行看清结构，再按 `--pages`/`pages` 取正文，别一上来就全文。
+4. **看到 `truncated: true` 就续读**：把 `next_cursor` 传回去，直到没有 `next_cursor` 为止（一次对话里可以串好几轮）。
+5. **一次要一批文件就传目录**：目录会合并成一份文档，锚点带文件名（`<!-- file:report.pdf page 3 -->`）。
+6. **需要 OCR / 转写 / 抽帧时先装插件**。没装时工具会明确告诉你 `xdoc plugin add ocr` 之类命令，别自己猜。
+7. **想要精确结构就用 `format=json`**，想要好读的文本就用 `markdown`。
+8. **出错时工具返回 `isError=true`**，正文里写明原因（如「文件不存在: …」）；按提示改路径重试即可，别把错误当内容继续用。
+9. 细节见 `skills/xdoc-read/SKILL.md`。
 
 ---
 
@@ -462,15 +537,16 @@ xdoc read book.epub
 | 现象 | 原因 | 解决 |
 | --- | --- | --- |
 | `错误: 暂不支持的文件类型: xxx` | 类型不在支持矩阵（见 §9） | 换格式，或先转成 PDF/文本 |
-| `错误: 暂不支持目录: …` | 只支持单文件 | 逐个文件读 |
+| `错误: 目录里没有可读的文件: …` | 目录里全是认不出的格式 | 换目录；或先转成 PDF/文本 |
 | `错误: 文件不存在: …` | 路径错 | 用绝对路径 |
+| `错误: 无效的 cursor: …` | 游标被改写了 | 原样传回上一步的 `next_cursor`；不要自己拼 |
 | 正文里出现「（图片内容需要 OCR 插件…）」 | 没装 `ocr` | `xdoc plugin add ocr` |
 | 扫描 PDF 每页都是「没有文本层」 | 没装 `ocr` | 同上；装好后自动 OCR |
 | 音频只有时长没有文字 | 没装 `asr` / `asr-zh` | 装插件；中文装 `asr-zh` |
 | 视频只有元信息、没有帧 | 没装 `media` | `xdoc plugin add media` |
 | `.doc` 读取报错 | 没装 LibreOffice | 装 LibreOffice（`doctor` 会检查） |
 | Windows 终端中文显示异常 | 终端本身不支持 UTF-8 | 用 `-o out.md` 写文件；xdoc 内部已做编码兜底，不会崩 |
-| 大 PDF 很慢 | 表格识别 + 图片提取占大头 | `--pages` 缩小范围、`--tables off`、`--no-images` |
+| 大 PDF 很慢 | 表格识别 + 图片提取占大头 | `--pages` 缩小范围、`--tables off`、`--no-images`；同一文件第二次读会命中缓存 |
 | 中文 ASR 第一次特别慢 | 加载 1GB 模型（CPU） | 正常现象，之后同一进程很快 |
 | `xdoc doctor` 报核心依赖 `[缺失]` | 安装损坏 | 重新 `uv tool install --force xdoc` |
 | 插件装完仍提示缺失 | 装到了别的目录 | `xdoc plugin list` 看状态；重装该插件 |
@@ -526,8 +602,8 @@ xdoc read book.epub
 - **中文 ASR 首调 30–60s**（CPU 加载 1GB 模型）。
 - **扫描 PDF 固定 200dpi 栅格化**，极小字号（<8pt）可能识别不全。
 - **旧版 Office 依赖本机 LibreOffice**。
-- **大 PDF 偏慢**（64 页中文维基约 14s）。
-- **暂不支持目录批量读**、不支持 URL、暂不支持 `.xlsb` / `.odt` 等其它格式。
+- **大 PDF 偏慢**（64 页中文维基首次解析约 14s；命中缓存后约 0.02s）。
+- **暂不支持 URL**、暂不支持 `.xlsb` / `.odt` 等其它格式。
 
 ---
 

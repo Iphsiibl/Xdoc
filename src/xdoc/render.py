@@ -10,15 +10,17 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .errors import XdocError
 from .ir import Block, Document, Section
 
 FORMATS = ("markdown", "text", "json")
 
+# 锚点正文模板（不含注释包装，由 _anchor_line 统一加 `<!-- ... -->`）
 _ANCHOR_STYLE = {
-    "page": "<!-- page {n} -->",
-    "slide": "<!-- slide {n} -->",
-    "sheet": "<!-- sheet: {name} -->",
-    "time": "<!-- t={t} -->",
+    "page": "page {n}",
+    "slide": "slide {n}",
+    "sheet": "sheet: {name}",
+    "time": "t={t}",
 }
 
 
@@ -52,7 +54,11 @@ def _front_matter(doc: Document) -> str:
         if value is None:
             continue
         if isinstance(value, (list, tuple)):
-            rendered = "[" + ", ".join(_yaml_scalar(v) for v in value) + "]"
+            if any(isinstance(item, dict) for item in value):
+                # 列表里带结构（如目录模式的 files）就用 JSON 流式写法，YAML 也能解析
+                rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            else:
+                rendered = "[" + ", ".join(_yaml_scalar(v) for v in value) + "]"
         else:
             rendered = _yaml_scalar(value)
         lines.append(f"{key}: {rendered}")
@@ -60,12 +66,21 @@ def _front_matter(doc: Document) -> str:
     return "\n".join(lines)
 
 
-def _anchor_line(section: Section) -> str:
+def _anchor_text(section: Section) -> str:
+    """锚点正文，例如 page 3 / sheet: 汇总 / t=00:00:12。"""
     kind, _, value = section.anchor.partition(":")
     template = _ANCHOR_STYLE.get(kind)
     if template is None:
-        return f"<!-- {section.anchor} -->"
+        return section.anchor
     return template.format(n=value, name=value, t=value)
+
+
+def _anchor_line(section: Section) -> str:
+    text = _anchor_text(section)
+    if section.file:
+        # 目录模式：标明这一节来自哪个文件
+        return f"<!-- file:{section.file} {text} -->"
+    return f"<!-- {text} -->"
 
 
 def _table_rows(block: Block) -> list[str]:
@@ -133,7 +148,10 @@ def render_text(doc: Document) -> str:
     out: list[str] = []
     assets_root = doc.meta.get("assets_root")
     for section in doc.sections:
-        out.append(f"[{section.label}]")
+        label = section.label
+        if section.file:
+            label = f"{section.file} · {label}"
+        out.append(f"[{label}]")
         for block in section.blocks:
             if block.kind == "table":
                 for row in block.rows:
@@ -175,19 +193,22 @@ def _block_to_dict(block: Block, assets_root: str | None = None) -> dict[str, An
 
 def render_json(doc: Document) -> str:
     assets_root = doc.meta.get("assets_root")
+    sections = []
+    for section in doc.sections:
+        item = {
+            "label": section.label,
+            "anchor": section.anchor,
+            "blocks": [_block_to_dict(b, assets_root) for b in section.blocks],
+        }
+        if section.file:
+            item["file"] = section.file
+        sections.append(item)
     payload = {
         "source": doc.source,
         "kind": doc.kind,
         "meta": doc.meta,
         "chars": doc.chars,
-        "sections": [
-            {
-                "label": section.label,
-                "anchor": section.anchor,
-                "blocks": [_block_to_dict(b, assets_root) for b in section.blocks],
-            }
-            for section in doc.sections
-        ],
+        "sections": sections,
     }
     return json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
 
@@ -199,4 +220,4 @@ def render(doc: Document, fmt: str = "markdown", *, front_matter: bool = True) -
         return render_text(doc)
     if fmt == "json":
         return render_json(doc)
-    raise ValueError(f"未知输出格式: {fmt}（可用: {', '.join(FORMATS)}）")
+    raise XdocError(f"未知输出格式: {fmt}（可用: {', '.join(FORMATS)}）")

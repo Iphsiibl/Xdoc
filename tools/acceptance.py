@@ -175,7 +175,10 @@ def speech_bounds(path: Path) -> tuple[float, float] | None:
 def run_xdoc(path: Path, options: ReadOptions | None = None) -> dict:
     started = time.perf_counter()
     try:
-        text, doc = read_with_meta(path, options or ReadOptions(format="markdown"))
+        options = options or ReadOptions(format="markdown")
+        # 基准要量的是「解析引擎」的耗时，不是缓存命中，所以强制不走缓存。
+        options.use_cache = False
+        text, doc = read_with_meta(path, options)
         return {
             "ok": True,
             "text": text,
@@ -394,7 +397,9 @@ def check_offline() -> list[dict]:
     rows = []
     for rel, extra in targets:
         path = SAMPLES / rel
-        cmd = [sys.executable, "-m", "xdoc", "read", str(path), "--format", "text", *extra]
+        # 必须绕过缓存：命中缓存等于没做转换，证明不了「离线也能转换」。
+        cmd = [sys.executable, "-m", "xdoc", "read", str(path), "--format", "text",
+               "--no-cache", *extra]
         started = time.perf_counter()
         try:
             proc = subprocess.run(cmd, capture_output=True, timeout=600, env=env,

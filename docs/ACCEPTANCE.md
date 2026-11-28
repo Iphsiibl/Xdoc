@@ -12,17 +12,17 @@ openpyxl/BeautifulSoup 独立抽取，与被测引擎无关。Excel 的日期时
 
 | 样本 | xdoc token_recall | xdoc shingle | anymd token_recall | xdoc 中位耗时 | anymd 耗时 |
 | --- | --- | --- | --- | --- | --- |
-| pdf/en_arxiv_attention.pdf | 1.0000 | 0.9831 | 0.9836 | 2.18s（0.10s 抖动） | 2.17 |
-| pdf/en_dummy.pdf | 1.0000 | 1.0000 | 1.0 | 0.00s（0.00s 抖动） | 1.74 |
-| pdf/en_paper_tracemonkey.pdf | 1.0000 | 0.9783 | 0.9607 | 3.20s（0.54s 抖动） | 2.16 |
-| pdf/zh_wiki_microsoft.pdf | 1.0000 | 0.9818 | 0.8768 | 5.93s（0.33s 抖动） | 3.16 |
-| pdf/zh_wiki_python.pdf | 1.0000 | 0.9632 | 0.9012 | 14.11s（1.82s 抖动） | 3.11 |
-| docx/calibre_demo.docx | 1.0000 | 0.9613 | 0.9816 | 0.11s（0.02s 抖动） | 1.87 |
-| pptx/poi_SampleShow.pptx | 1.0000 | 0.9688 | 1.0 | 0.02s（0.00s 抖动） | 2.16 |
-| pptx/pythonpptx_test.pptx | 1.0000 | 1.0000 | 1.0 | 0.03s（0.01s 抖动） | 1.88 |
-| xlsx/microsoft_sample.xlsx | 1.0000 | 0.9996 | 0.8552 | 0.25s（0.05s 抖动） | 2.19 |
-| html/en_wikipedia.html | 0.9757 | 0.9039 | 0.8696 | 0.16s（0.02s 抖动） | 1.89 |
-| html/zh_wikipedia.html | 0.9927 | 0.9298 | 0.9115 | 0.84s（0.23s 抖动） | 1.68 |
+| pdf/en_arxiv_attention.pdf | 1.0000 | 0.9831 | 0.9836 | 2.43s（0.29s 抖动） | 2.25 |
+| pdf/en_dummy.pdf | 1.0000 | 1.0000 | 1.0 | 0.01s（0.00s 抖动） | 1.85 |
+| pdf/en_paper_tracemonkey.pdf | 1.0000 | 0.9783 | 0.9607 | 3.59s（0.58s 抖动） | 2.2 |
+| pdf/zh_wiki_microsoft.pdf | 1.0000 | 0.9818 | 0.8768 | 6.91s（1.41s 抖动） | 2.85 |
+| pdf/zh_wiki_python.pdf | 1.0000 | 0.9632 | 0.9012 | 15.18s（1.39s 抖动） | 3.6 |
+| docx/calibre_demo.docx | 1.0000 | 0.9613 | 0.9816 | 0.14s（0.04s 抖动） | 2.12 |
+| pptx/poi_SampleShow.pptx | 1.0000 | 0.9688 | 1.0 | 0.04s（0.01s 抖动） | 2.6 |
+| pptx/pythonpptx_test.pptx | 1.0000 | 1.0000 | 1.0 | 0.01s（0.00s 抖动） | 1.95 |
+| xlsx/microsoft_sample.xlsx | 1.0000 | 0.9996 | 0.8552 | 0.25s（0.05s 抖动） | 2.18 |
+| html/en_wikipedia.html | 0.9757 | 0.9039 | 0.8696 | 0.17s（0.08s 抖动） | 3.75 |
+| html/zh_wikipedia.html | 0.9927 | 0.9298 | 0.9115 | 0.82s（0.21s 抖动） | 2.48 |
 
 ## 2. 结构可追溯
 
@@ -93,14 +93,14 @@ or al |
 
 | 样本 | 结果 | 耗时 | 输出字符 | 备注 |
 | --- | --- | --- | --- | --- |
-| pdf/zh_wiki_python.pdf | **PASS** | 14.33s | 127058 |  |
-| images/zh_easyocr_chinese.jpg | **PASS** | 3.93s | 56 |  |
-| audio/zh_funasr_example.wav | **PASS** | 63.0s | 57 |  |
-| audio/en_jfk.flac | **PASS** | 12.32s | 147 |  |
+| pdf/zh_wiki_python.pdf | **PASS** | 17.23s | 127058 |  |
+| images/zh_easyocr_chinese.jpg | **PASS** | 4.46s | 56 |  |
+| audio/zh_funasr_example.wav | **PASS** | 70.5s | 57 |  |
+| audio/en_jfk.flac | **PASS** | 13.75s | 147 |  |
 
 ## 6. 输出格式可选
 
-- `docx/calibre_demo.docx`：markdown=10441 字符，text=9469 字符，json=21246 字符 → **PASS**
+- `docx/calibre_demo.docx`：markdown=10453 字符，text=9469 字符，json=21267 字符 → **PASS**
 
 ## 7. MCP 工具面
 

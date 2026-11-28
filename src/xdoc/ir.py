@@ -41,11 +41,15 @@ class Block:
 
 @dataclass
 class Section:
-    """带锚点的可追溯单元：PDF 一页 / PPT 一页幻灯片 / Excel 一张表 / 音频一个时间段。"""
+    """带锚点的可追溯单元：PDF 一页 / PPT 一页幻灯片 / Excel 一张表 / 音频一个时间段。
+
+    file 只在「读目录」时出现：标明这一节来自哪个文件（相对目录的路径）。
+    """
 
     label: str
     anchor: str
     blocks: list[Block] = field(default_factory=list)
+    file: str | None = None
 
     def add(self, block: Block) -> None:
         self.blocks.append(block)

@@ -26,8 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"xdoc {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    read_cmd = sub.add_parser("read", help="读取单个文件")
-    read_cmd.add_argument("path", help="文件路径")
+    read_cmd = sub.add_parser("read", help="读取文件或目录")
+    read_cmd.add_argument("path", help="文件路径（也可以是目录，会把目录里能读的文件合并）")
     read_cmd.add_argument("--format", default="markdown", choices=["markdown", "text", "json"],
                           help="输出格式（默认 markdown）")
     read_cmd.add_argument("--max-tokens", type=int, default=None, help="token 预算，超出即截断并给续读游标")
@@ -43,6 +43,9 @@ def build_parser() -> argparse.ArgumentParser:
                           help="PDF 表格识别：auto（页面有画线才识别，快）/ on（每页都按画线识别）/ off（不识别）")
     read_cmd.add_argument("--no-images", action="store_true", help="不提取内嵌图片")
     read_cmd.add_argument("--no-front-matter", action="store_true", help="不输出元数据头")
+    read_cmd.add_argument("--outline", action="store_true",
+                          help="只输出结构（标题+锚点），不输出正文；适合先看目录再定点读")
+    read_cmd.add_argument("--no-cache", action="store_true", help="跳过解析缓存，强制重新解析")
     read_cmd.add_argument("-o", "--output", default=None, help="输出到文件而不是标准输出")
 
     plugin_cmd = sub.add_parser("plugin", help="可选引擎插件管理（安装/卸载/查看）")
@@ -61,6 +64,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor", help="检查环境与依赖")
     sub.add_parser("serve", help="以 stdio 方式启动 MCP 服务")
+
+    cache_cmd = sub.add_parser("cache", help="解析缓存（查看占用 / 清理）")
+    cache_sub = cache_cmd.add_subparsers(dest="cache_command", required=True)
+    cache_sub.add_parser("info", help="查看缓存占用")
+    cache_sub.add_parser("clear", help="清空解析缓存")
     return parser
 
 
@@ -76,6 +84,8 @@ def _cmd_read(args) -> int:
         tables=args.tables,
         images="none" if args.no_images else "refs",
         front_matter=not args.no_front_matter,
+        outline=args.outline,
+        use_cache=not args.no_cache,
     )
     text, doc = read_with_meta(args.path, options)
     if args.output:
@@ -83,6 +93,20 @@ def _cmd_read(args) -> int:
         print(f"written: {args.output}  ({doc.chars} chars, {len(doc.sections)} sections)")
     else:
         sys.stdout.write(text)
+    return 0
+
+
+def _cmd_cache(args) -> int:
+    from .cache import cache_root, clear, usage
+
+    root = cache_root()
+    if args.cache_command == "clear":
+        removed = clear(root)
+        print(f"已清理解析缓存: {removed} 个条目（{root}）")
+        return 0
+    count, size = usage(root)
+    print(f"缓存目录: {root}")
+    print(f"条目数: {count}    占用: {size / 1024 / 1024:.1f} MB")
     return 0
 
 
@@ -144,6 +168,12 @@ def _cmd_doctor() -> int:
     for item in manager.list():
         print(f"  [{'已装' if item['installed'] else '未装'}] {item['name']:6s} {item['title']}")
 
+    from .cache import cache_root, usage
+
+    count, size = usage(cache_root())
+    print(f"\n解析缓存: {cache_root()}")
+    print(f"  条目数: {count}    占用: {size / 1024 / 1024:.1f} MB（xdoc cache clear 可清空）")
+
     if missing:
         print(f"\n核心依赖缺失: {', '.join(missing)}；重新安装 xdoc 即可。")
         return 1
@@ -188,6 +218,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_read(args)
         if args.command == "plugin":
             return _cmd_plugin(args)
+        if args.command == "cache":
+            return _cmd_cache(args)
         if args.command == "doctor":
             return _cmd_doctor()
         if args.command == "serve":
@@ -195,6 +227,10 @@ def main(argv: list[str] | None = None) -> int:
 
             return serve_main()
     except XdocError as exc:
+        print(f"错误: {exc}", file=sys.stderr)
+        return 2
+    except (ValueError, OSError) as exc:
+        # 这些异常不该甩给用户看堆栈
         print(f"错误: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:  # pragma: no cover

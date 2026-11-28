@@ -100,3 +100,23 @@ anymd 不进生产，只当**对照基线**（同一批样本跑同一套指标�
   （1.x/2.x 双兼容写法）。
 - **预算切表**：只切文本块会把大表格整块丢掉 → 表格按行切、表头重复、cursor 偏移对表格表示"已消费行数"。
 - **测量纪律**：跑基准时不要并行其它重任务，否则 CPU 争用让耗时数字虚高（早前 37s 那批数据就是这么来的）。
+
+## 7. 体验优化轮（2026-11-28，P0+P1）
+
+目标不变：**让「人」和「Agent」用起来更容易**。用真实探针跑了一遍人和 Agent 会撞到的路径
+（`tools/ux_probe.py` 走 CLI/API，`tools/mcp_probe.py` 用官方 MCP 客户端连 stdio 服务），
+发现四类硬伤，逐条修掉：
+
+| 问题（实测） | 修法 | 结果 |
+|---|---|---|
+| MCP schema 只有 title+type，没说明没枚举，Agent 只能猜参数含义 | 每个参数加 `description`，枚举值用 `Literal` 生成 `enum` | schema 里 12 个参数全部带说明与取值范围 |
+| 业务错误被当成成功返回（`is_error=False`，正文写「[xdoc 错误] …」） | 业务错误改抛 SDK 的 `ToolError` | 客户端看到 `isError=true` + 完整原因（如「文件不存在: …」） |
+| MCP 默认不限 token：一次 read 把 12.5 万字塞进 128k 上下文（占 98%） | MCP 默认 `max_tokens=30000`，`0` 表示不限；CLI 保持不限 | 单次调用体量可控 |
+| 长文档只能全文硬读；坏 cursor 甩 Python traceback | 新增 `outline`（只给标题+锚点）、目录合并读取、解析缓存；`decode_cursor` 抛 `XdocError`，CLI 统一捕获后打印「错误: …」退出码 2 | outline 后 64 页文档 125702 → 5251 字符（4.2%）；重复读 2.49s → 0.02s |
+
+约束照旧：MCP 仍然只暴露 **一个工具 `read`**，新增能力全部做成 `read` 的参数（`outline`、`path` 支持目录）；
+CLI 与 MCP 共用 `api.read_document`，输出一致。
+
+MCP SDK 的一个坑：工具异常到 `CallToolResult(is_error=True)` 的转换发生在**协议层**
+（`mcp/server/mcpserver/server.py:437-456`），直接调 `server.call_tool()` 只会抛异常——
+所以错误语义的测试必须走真实客户端（内存传输即可），否则测不到 Agent 真正看到的东西。

@@ -12,7 +12,11 @@ __all__ = ["convert", "filter_pages"]
 
 
 def convert(path: str | Path, options: ReadOptions, assets: AssetStore):
-    """把任意支持的文件转换成 Document。"""
+    """把任意支持的文件转换成 Document。
+
+    注意：这里不做页码筛选，也不做结构裁剪——那些在 api.read_document 里统一做，
+    这样同一份解析结果可以被缓存复用（切页/取目录不必重新解析文件）。
+    """
     from ..detect import detect_kind
 
     p = Path(path)
@@ -24,8 +28,6 @@ def convert(path: str | Path, options: ReadOptions, assets: AssetStore):
     assets.bind(p)
     doc = handler(p, options, assets)
     doc.meta.setdefault("engine", kind)
-    if options.pages:
-        filter_pages(doc, options.pages)
     return doc
 
 

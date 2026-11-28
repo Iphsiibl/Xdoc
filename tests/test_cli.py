@@ -15,10 +15,12 @@ from conftest import require, sample
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(*args: str) -> subprocess.CompletedProcess:
+def run(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONPATH"] = str(ROOT / "src")
+    if env_extra:
+        env.update(env_extra)
     return subprocess.run(
         [sys.executable, "-m", "xdoc", *args],
         capture_output=True,
@@ -58,6 +60,55 @@ def test_missing_file_returns_2():
     proc = run("read", "C:/definitely/not/here.docx")
     assert proc.returncode == 2
     assert "错误" in proc.stderr
+
+
+def test_invalid_cursor_returns_2_without_traceback():
+    """坏 cursor 必须是人话错误，不是 Python 堆栈。"""
+    path = require(sample("pdf", "en_dummy.pdf"))
+    proc = run("read", str(path), "--cursor", "!!!bad!!!")
+    assert proc.returncode == 2
+    assert "无效的 cursor" in proc.stderr
+    assert "Traceback" not in proc.stderr
+
+
+def test_read_outline_flag(tmp_path):
+    docx = pytest.importorskip("docx")
+    path = tmp_path / "outline.docx"
+    document = docx.Document()
+    document.add_heading("第一章", 0)
+    document.add_paragraph("正文内容很长，" * 50)
+    document.save(path)
+
+    env_extra = {"XDOC_CACHE_DIR": str(tmp_path / "cache")}
+    full = run("read", str(path), env_extra=env_extra)
+    brief = run("read", str(path), "--outline", env_extra=env_extra)
+    assert brief.returncode == 0, brief.stderr
+    assert "outline: true" in brief.stdout
+    assert "第一章" in brief.stdout
+    assert len(brief.stdout) < len(full.stdout)
+
+
+def test_read_directory_merges_files(tmp_path):
+    (tmp_path / "a.md").write_text("# 甲\n\n内容甲\n", encoding="utf-8")
+    (tmp_path / "b.md").write_text("# 乙\n\n内容乙\n", encoding="utf-8")
+    proc = run("read", str(tmp_path), env_extra={"XDOC_CACHE_DIR": str(tmp_path / "cache")})
+    assert proc.returncode == 0, proc.stderr
+    assert "kind: collection" in proc.stdout
+    assert "file_count: 2" in proc.stdout
+    assert "内容甲" in proc.stdout and "内容乙" in proc.stdout
+    assert "file:a.md" in proc.stdout
+
+
+def test_cache_commands(tmp_path):
+    cache_dir = tmp_path / "cache"
+    env_extra = {"XDOC_CACHE_DIR": str(cache_dir)}
+    info = run("cache", "info", env_extra=env_extra)
+    assert info.returncode == 0, info.stderr
+    assert "缓存目录" in info.stdout
+    assert str(cache_dir) in info.stdout
+    clear = run("cache", "clear", env_extra=env_extra)
+    assert clear.returncode == 0, clear.stderr
+    assert "已清理解析缓存" in clear.stdout
 
 
 def test_plugin_list():
