@@ -16,6 +16,8 @@
 - **出口**：`max_tokens` 预算切分 + `cursor` 续读，渲染成 Markdown / 纯文本 / JSON。
 - **可选插件**：OCR / ASR / ffmpeg 跑在隔离 venv 里；图片与抽帧落到资产目录。
 
+📖 **完整使用手册**（安装、参数表、输出契约、插件、按任务查、故障排查）→ [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
+
 ## 安装
 
 ```bash
