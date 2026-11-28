@@ -1,4 +1,4 @@
-# xdoc 0.1.0 发布记录
+# xdoc 发布记录（0.1.0 / 0.1.1）
 
 日期：2026-11-28（发布日）
 包名：`xdoc-tools`（PyPI，MIT）—— 命令仍是 `xdoc`
@@ -15,13 +15,38 @@
 | 项 | 值 |
 | --- | --- |
 | 包名 | `xdoc-tools`（PyPI 上显示为 XdocTools） |
-| 版本 | 0.1.0 |
+| 版本 | 0.1.0（本机 token 发布）、**0.1.1（CI 自动发布，见下节）** |
 | 项目页 | <https://pypi.org/project/xdoc-tools/> |
 | 安装 | `uv tool install xdoc-tools`（装完命令仍是 `xdoc`） |
 | wheel | `xdoc_tools-0.1.0-py3-none-any.whl`（55039 B，sha256 `05e455d928188b9c3962a925c969feee873bd6d6d6a86e54cf471d0678b20525`） |
 | sdist | `xdoc_tools-0.1.0.tar.gz`（197193 B，sha256 `9add9e884d8e4cebdea949b6e3f7f9dda564ab5678abeba1e66a13e5c7c510db`） |
-| 发布方式 | 本机 API token（`uv publish`）；PyPI 侧 Trusted Publisher 已激活（GitHub / `Iphsiibl/Xdoc` / `publish.yml` / environment `pypi`），之后的版本由 CI 用 OIDC 自动发 |
+| 发布方式 | 0.1.0 = 本机 API token（`uv publish`）；0.1.1 = **CI 用 Trusted Publisher（OIDC）自动发布**，仓库里不存任何 token |
 | 发布后复验 | `uv run python tools/release_check.py --from-index` → 干净环境从 PyPI 安装、`--version`、`doctor` 绿、真读 docx、`plugin list`、README 命令一致，**全 PASS** |
+
+## 0.1.1 —— CI 自动发布（PyPI Trusted Publisher / OIDC）
+
+| 项 | 值 |
+| --- | --- |
+| 触发方式 | `git tag v0.1.1 && git push origin v0.1.1` → GitHub Actions `publish.yml` 自动跑完并上传 |
+| workflow run | `46112053578`（event=push, ref=v0.1.1, conclusion=**success**） |
+| wheel | `xdoc_tools-0.1.1-py3-none-any.whl`（54426 B，sha256 `63c6b8431a2f4b66839eb068245eada042dde5467a53773df0be8db71e7dbdc3`） |
+| sdist | `xdoc_tools-0.1.1.tar.gz`（197656 B，sha256 `647d881cce470bf45a671a1b52a1cf249c96d7dc33fe304459683706fcdf4243`） |
+| PyPI 侧配置 | 项目 `xdoc-tools` → Manage current publishers → GitHub / `Iphsiibl/Xdoc` / `publish.yml` / environment `pypi`（已激活） |
+| 凭据 | 仓库里没有 token；上传用的是 GitHub OIDC token 换来的 PyPI 短期 token（`pypi.org/_/oidc/mint-token`） |
+| 发布后复验 | `uv run python tools/release_check.py --from-index` → 6/6 PASS（干净环境装到 **0.1.1** → `--version` → `doctor` 绿 → 真读 docx → `plugin list` → README 命令一致） |
+
+**以后发版只要三步**（不用碰 token）：
+
+```bash
+# 1) 改版本号：pyproject.toml 的 version + src/xdoc/__init__.py 的 __version__，然后 uv lock
+# 2) 跑一遍自检
+uv run --extra dev pytest
+uv run python tools/release_check.py
+# 3) 打标签推上去，CI 自己发
+git commit -am "release: 0.1.2" && git push origin main
+git tag v0.1.2 && git push origin v0.1.2
+```
+
 
 ## 1. 发布前自检（`tools/release_check.py`）
 

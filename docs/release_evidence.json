@@ -4,12 +4,12 @@
     {
       "name": "干净环境安装成功",
       "ok": true,
-      "detail": "C:\\Users\\Windows\\AppData\\Local\\Temp\\xdoc-release-o5dv1mgx\\bin\\xdoc.exe"
+      "detail": "C:\\Users\\Windows\\AppData\\Local\\Temp\\xdoc-release-p1c2808j\\bin\\xdoc.exe"
     },
     {
       "name": "安装后 --version 可用",
       "ok": true,
-      "detail": "xdoc 0.1.0"
+      "detail": "xdoc 0.1.1"
     },
     {
       "name": "doctor 绿（核心依赖齐全）",
