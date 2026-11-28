@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "确认发布到 PyPI（输入 xdoc）"
+        description: "确认发布到 PyPI（输入 xdoc-tools）"
         required: true
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/xdoc/
+      url: https://pypi.org/project/xdoc-tools/
     steps:
       - uses: actions/checkout@v7
 
@@ -31,13 +31,27 @@ jobs:
 
       - name: 手动触发时的确认
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        run: test "${{ inputs.confirm }}" = "xdoc" || (echo "确认串不对，已取消" && exit 1)
+        run: test "${{ inputs.confirm }}" = "xdoc-tools" || (echo "确认串不对，已取消" && exit 1)
 
       - name: 跑测试
-        run: uv sync --extra dev && uv run pytest
+        run: uv sync --extra dev && uv run --extra dev pytest
 
       - name: 发布前自检（干净环境安装 + doctor 绿 + README 一致）
         run: uv run python tools/release_check.py
 
+      # 幂等：这一版已经在 PyPI 上了就跳过上传（重推同名 tag 不会再撞 409）
+      - name: 查这个版本是否已发布
+        id: exists
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          URL="https://pypi.org/pypi/xdoc-tools/json"
+          if curl -fsS "$URL" | grep -q "\"$VERSION\""; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "PyPI 上已有 $VERSION，跳过上传"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 发布到 PyPI
+        if: steps.exists.outputs.exists != 'true'
         run: uv publish --trusted-publishing always
