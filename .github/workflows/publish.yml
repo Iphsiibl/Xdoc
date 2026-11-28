@@ -52,6 +52,19 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # 预检：只换 token 不上传，publisher 没配好时把 PyPI 的原话挂成注解
+      - name: 自检 Trusted Publisher（只换 token，不上传）
+        if: steps.exists.outputs.exists != 'true'
+        run: python3 tools/check_trusted_publisher.py
+
       - name: 发布到 PyPI
         if: steps.exists.outputs.exists != 'true'
-        run: uv publish --trusted-publishing always
+        run: |
+          set -o pipefail
+          uv publish --trusted-publishing always 2>&1 | tee publish.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            echo "::error::uv publish 失败（exit $code）"
+            grep -iE "error|failed|403|409|token|publisher" publish.log | head -20 | sed 's/^/::error::/'
+            exit "$code"
+          fi
