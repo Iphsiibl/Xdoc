@@ -40,10 +40,11 @@ jobs:
         run: uv run python tools/release_check.py
 
       # 幂等：这一版已经在 PyPI 上了就跳过上传（重推同名 tag 不会再撞 409）
+      # 版本号从 pyproject.toml 取，不看 ref 名：手动触发时 ref 是 main/tag 名，不是版本
       - name: 查这个版本是否已发布
         id: exists
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="$(python3 -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
           URL="https://pypi.org/pypi/xdoc-tools/json"
           if curl -fsS "$URL" | grep -q "\"$VERSION\""; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -53,8 +54,10 @@ jobs:
           fi
 
       # 预检：只换 token 不上传，publisher 没配好时把 PyPI 的原话挂成注解
+      # 这步必须留在 publish.yml 里跑：OIDC token 的 claims 里带的是「发起请求的工作流文件名」，
+      # 单独建一个 check 工作流去换 token，claims 里的 workflow 是另一个文件名，
+      # PyPI 一定报 422 invalid-publisher（实测过，claims 本身没问题）。
       - name: 自检 Trusted Publisher（只换 token，不上传）
-        if: steps.exists.outputs.exists != 'true'
         run: python3 tools/check_trusted_publisher.py
 
       - name: 发布到 PyPI

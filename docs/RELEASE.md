@@ -20,7 +20,7 @@
 | 安装 | `uv tool install xdoc-tools`（装完命令仍是 `xdoc`） |
 | wheel | `xdoc_tools-0.1.0-py3-none-any.whl`（55039 B，sha256 `05e455d928188b9c3962a925c969feee873bd6d6d6a86e54cf471d0678b20525`） |
 | sdist | `xdoc_tools-0.1.0.tar.gz`（197193 B，sha256 `9add9e884d8e4cebdea949b6e3f7f9dda564ab5678abeba1e66a13e5c7c510db`） |
-| 发布方式 | 本机 API token（`uv publish`）；PyPI 侧已登记 pending publisher（GitHub / `Iphsiibl/Xdoc` / `publish.yml`），之后的版本可走 CI 的 OIDC |
+| 发布方式 | 本机 API token（`uv publish`）；PyPI 侧 Trusted Publisher 已激活（GitHub / `Iphsiibl/Xdoc` / `publish.yml` / environment `pypi`），之后的版本由 CI 用 OIDC 自动发 |
 | 发布后复验 | `uv run python tools/release_check.py --from-index` → 干净环境从 PyPI 安装、`--version`、`doctor` 绿、真读 docx、`plugin list`、README 命令一致，**全 PASS** |
 
 ## 1. 发布前自检（`tools/release_check.py`）
@@ -75,57 +75,49 @@ Publish 唯一的失败点是最后一步的 OIDC 取 token：GitHub Actions 侧
 在此之前，`uv run pytest` 与 `uv run python tools/release_check.py` 在 CI 里都已通过，
 即「干净机器可安装 + doctor 绿 + README 命令一致」这条 done 标准已由 CI 独立验证。
 
-### 3.2 两条上传路径，任选一条
+### 3.2 之后怎么发：CI 自动发布（已打通，仓库里不存任何 token）
 
-> **0.1.0 已走路径 B 完成发布**（本机 token）。下面的 A/B 说明保留给后续版本。
+**PyPI 侧的 Trusted Publisher 已激活**（2026-11-28 在
+<https://pypi.org/manage/project/xdoc-tools/settings/publishing/> 添加，页面上 "Manage current publishers"
+现在能看到这一条）：
 
-### A. CI 自动发布（推荐，无需在本机保存密钥）
+| 字段 | 值 |
+| --- | --- |
+| Provider | GitHub |
+| Owner | `Iphsiibl` |
+| Repository name | `Xdoc` |
+| Workflow name | `publish.yml` |
+| Environment name | `pypi` |
 
-仓库已带 `.github/workflows/publish.yml`：推送 `v*` 标签或手动触发 → 跑测试 → 跑发布前自检 →
-查这一版是否已在 PyPI（是就跳过上传，避免 409）→ 自检 Trusted Publisher（只换 token，不上传）→
-`uv publish --trusted-publishing always`（PyPI OIDC，仓库里不存任何 token）。
+之后发版只有两步：
 
-另有一个独立工作流 `.github/workflows/trusted-publisher-check.yml`：只做「换 token」自检，
-不发布任何东西；失败时把 PyPI 的原话挂成注解，一眼能看出是 publisher 没激活还是环境名不匹配。
+```bash
+# 1. 改版本号：pyproject.toml 里 version = "0.1.1"（跟着 uv lock）
+# 2. 打标签推上去
+git tag v0.1.1 && git push origin v0.1.1
+```
 
-#### 当前卡点（2026-11-28 实测）
+`.github/workflows/publish.yml` 收到 `v*` 标签后依次：跑测试 → 跑发布前自检 →
+查这一版是否已在 PyPI（版本号从 `pyproject.toml` 取，不是 ref 名，所以手动触发也准）→
+**换 OIDC token 自检** → `uv publish --trusted-publishing always`。
 
-自检工作流给出的 PyPI 原话：
+也可以手动触发：Actions → Publish → Run workflow，confirm 填 `xdoc-tools`。
+此时若当前版本已在 PyPI，上传那步会自动跳过，只跑测试与自检。
+
+#### 踩过的坑：为什么不能单独建一个「自检」工作流
+
+最初的方案是另开一个 `trusted-publisher-check.yml` 只换 token 不上传，结果实测报：
 
 ```
 HTTP 422 {"errors":[{"code":"invalid-publisher","description":"valid token, but no corresponding publisher (Publisher with matching claims was not found)"}],"message":"Token request failed"}
 ```
 
-意思很明确：GitHub 侧的 OIDC token 是有效的（claims 正确：仓库 `Iphsiibl/Xdoc`、工作流 `publish.yml`），
-但 PyPI 上还没有**已激活**的 publisher。原因是 0.1.0 是用 API token 建的包，
-建包时登记的 **Pending publisher（XdocTools）没有自动转成 active**。
+原因不是 publisher 没配好，而是 **OIDC token 的 claims 里带的是「发起这次请求的工作流文件名」**：
+publisher 登记的是 `publish.yml`，自检工作流却是 `trusted-publisher-check.yml`，文件名对不上，
+PyPI 匹配不到任何 publisher（报错里的 `valid token` 说明 GitHub 侧 claims 全对）。
+结论：「换 token 自检」这一步必须待在 `publish.yml` 里面 —— 现已如此，那个独立自检工作流已删除。
 
-**需要人工做的一步**（只有 PyPI 账号持有人能做）：
-
-1. 打开 <https://pypi.org/manage/project/xdoc-tools/settings/publishing/>
-2. 如果那里还挂着 Pending 那条，先 Remove，再重新 Add 一条：
-   - Provider：`GitHub`
-   - Repository：`Iphsiibl/Xdoc`
-   - Workflow filename：`publish.yml`
-   - Environment name：**留空**（= Any；工作流里用的是 `environment: pypi`，Any 也能匹配）
-3. 回到仓库跑一次 `Trusted Publisher 自检` 工作流（Actions → 该工作流 → Run workflow）：
-   绿了就说明以后发布只要「改版本号 + `git tag v0.1.1 && git push origin v0.1.1`」，
-   CI 会用 OIDC 自动发，仓库里不需要任何 token。
-
-一次性配置（在 https://pypi.org/manage/project/xdoc-tools/settings/publishing/ 添加 Trusted Publisher）：
-
-- Provider：`GitHub`
-- Repository：`Iphsiibl/Xdoc`
-- Workflow name：`publish.yml`
-- Environment name：`pypi`
-
-> 该项目在 PyPI 上已登记为 **Pending publisher: XdocTools**（Repository `Iphsiibl/Xdoc`、
-> Workflow `publish.yml`、Environment `(Any)`）。项目一旦存在，这个 pending publisher 会自动生效，
-> 之后推 `v*` 标签即可由 CI 用 OIDC 发布，仓库里不存任何 token。
-
-然后 `git tag v0.1.0 && git push origin v0.1.0` 即可。
-
-### B. 本机用 API token 发布（一步到位）
+### 3.3 备用：本机用 API token 发布（万一 CI 坏了）
 
 需要 PyPI API token（**用户侧凭据，助手不代管、不落盘**）：
 
@@ -139,7 +131,6 @@ uv publish --username <你的用户名>
 ```
 
 token 申请：https://pypi.org/manage/account/token/ （scope 勾 `pypi` 上传）。
-若同名 `xdoc-tools` 也被占用，改版本号或换名。
 
 上传后按 done 标准复验：
 
