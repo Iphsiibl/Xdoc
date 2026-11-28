@@ -7,19 +7,19 @@
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9831,
-      "median_s": 3.83,
+      "median_s": 2.34,
       "spread": [
-        0.17,
+        1.19,
         [
-          3.81,
-          3.83,
-          3.98
+          2.23,
+          2.34,
+          3.42
         ]
       ],
       "table_rows": 44,
       "anchors": 15,
       "anymd_token_recall": 0.9836,
-      "anymd_s": 4.31
+      "anymd_s": 8.46
     },
     {
       "sample": "pdf/en_dummy.pdf",
@@ -38,102 +38,102 @@
       "table_rows": 0,
       "anchors": 1,
       "anymd_token_recall": 1.0,
-      "anymd_s": 2.99
+      "anymd_s": 2.09
     },
     {
       "sample": "pdf/en_paper_tracemonkey.pdf",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9783,
-      "median_s": 4.64,
+      "median_s": 4.36,
       "spread": [
-        1.35,
+        0.6,
         [
-          4.44,
-          4.64,
-          5.79
+          4.02,
+          4.36,
+          4.62
         ]
       ],
       "table_rows": 0,
       "anchors": 14,
       "anymd_token_recall": 0.9607,
-      "anymd_s": 2.89
+      "anymd_s": 2.77
     },
     {
       "sample": "pdf/zh_wiki_microsoft.pdf",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9818,
-      "median_s": 7.71,
+      "median_s": 7.15,
       "spread": [
-        1.38,
+        1.4,
         [
-          6.57,
-          7.71,
-          7.95
+          7.05,
+          7.15,
+          8.45
         ]
       ],
       "table_rows": 8,
       "anchors": 25,
       "anymd_token_recall": 0.8768,
-      "anymd_s": 3.71
+      "anymd_s": 2.72
     },
     {
       "sample": "pdf/zh_wiki_python.pdf",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9632,
-      "median_s": 20.8,
+      "median_s": 16.32,
       "spread": [
-        7.26,
+        3.62,
         [
-          15.9,
-          20.8,
-          23.16
+          15.61,
+          16.32,
+          19.22
         ]
       ],
       "table_rows": 78,
       "anchors": 64,
       "anymd_token_recall": 0.9012,
-      "anymd_s": 4.31
+      "anymd_s": 4.71
     },
     {
       "sample": "docx/calibre_demo.docx",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9613,
-      "median_s": 0.13,
+      "median_s": 0.17,
       "spread": [
-        0.03,
+        0.07,
         [
-          0.12,
-          0.13,
-          0.15
+          0.15,
+          0.17,
+          0.22
         ]
       ],
       "table_rows": 33,
       "anchors": 0,
       "anymd_token_recall": 0.9816,
-      "anymd_s": 2.42
+      "anymd_s": 2.93
     },
     {
       "sample": "pptx/poi_SampleShow.pptx",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9688,
-      "median_s": 0.02,
+      "median_s": 0.05,
       "spread": [
-        0.0,
+        0.01,
         [
-          0.02,
-          0.02,
-          0.02
+          0.04,
+          0.05,
+          0.05
         ]
       ],
       "table_rows": 0,
       "anchors": 2,
       "anymd_token_recall": 1.0,
-      "anymd_s": 2.48
+      "anymd_s": 2.29
     },
     {
       "sample": "pptx/pythonpptx_test.pptx",
@@ -144,7 +144,7 @@
       "spread": [
         0.0,
         [
-          0.01,
+          0.02,
           0.02,
           0.02
         ]
@@ -152,64 +152,64 @@
       "table_rows": 0,
       "anchors": 1,
       "anymd_token_recall": 1.0,
-      "anymd_s": 2.16
+      "anymd_s": 3.59
     },
     {
       "sample": "xlsx/microsoft_sample.xlsx",
       "ok": true,
       "token_recall": 1.0,
       "shingle_recall": 0.9996,
-      "median_s": 0.27,
+      "median_s": 0.4,
       "spread": [
-        0.08,
+        0.14,
         [
-          0.24,
-          0.27,
-          0.32
+          0.32,
+          0.4,
+          0.46
         ]
       ],
       "table_rows": 702,
       "anchors": 1,
       "anymd_token_recall": 0.8552,
-      "anymd_s": 2.33
+      "anymd_s": 2.48
     },
     {
       "sample": "html/en_wikipedia.html",
       "ok": true,
       "token_recall": 0.9757,
       "shingle_recall": 0.9039,
-      "median_s": 0.24,
+      "median_s": 0.25,
       "spread": [
-        0.26,
+        0.11,
         [
-          0.19,
-          0.24,
-          0.46
+          0.18,
+          0.25,
+          0.29
         ]
       ],
       "table_rows": 48,
       "anchors": 0,
       "anymd_token_recall": 0.8696,
-      "anymd_s": 2.24
+      "anymd_s": 2.51
     },
     {
       "sample": "html/zh_wikipedia.html",
       "ok": true,
       "token_recall": 0.9927,
       "shingle_recall": 0.9298,
-      "median_s": 0.85,
+      "median_s": 1.42,
       "spread": [
-        0.48,
+        0.56,
         [
-          0.72,
-          0.85,
-          1.2
+          1.24,
+          1.42,
+          1.8
         ]
       ],
       "table_rows": 215,
       "anchors": 0,
       "anymd_token_recall": 0.9115,
-      "anymd_s": 2.1
+      "anymd_s": 2.78
     }
   ],
   "traceability": [
@@ -364,28 +364,28 @@
     {
       "sample": "pdf/zh_wiki_python.pdf",
       "ok": true,
-      "seconds": 17.6,
+      "seconds": 20.27,
       "chars": 127058,
       "error": ""
     },
     {
       "sample": "images/zh_easyocr_chinese.jpg",
       "ok": true,
-      "seconds": 5.24,
+      "seconds": 9.79,
       "chars": 56,
       "error": ""
     },
     {
       "sample": "audio/zh_funasr_example.wav",
       "ok": true,
-      "seconds": 85.12,
+      "seconds": 80.14,
       "chars": 57,
       "error": ""
     },
     {
       "sample": "audio/en_jfk.flac",
       "ok": true,
-      "seconds": 15.06,
+      "seconds": 14.16,
       "chars": 147,
       "error": ""
     }

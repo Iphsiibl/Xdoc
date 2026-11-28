@@ -31,8 +31,11 @@ def convert(path: str | Path, options: ReadOptions, assets: AssetStore):
     return doc
 
 
-def filter_pages(doc, spec: str) -> None:
-    """按 "1-5,8" 之类的规格筛选章节（页/幻灯片/表）。"""
+def parse_page_spec(spec: str) -> set[int]:
+    """解析 "1-5,8" 这样的范围。
+
+    写错就直接报错——静默忽略会让用户以为读到了那几页，其实拿到的是全文或空文档。
+    """
     wanted: set[int] = set()
     for part in spec.split(","):
         part = part.strip()
@@ -41,17 +44,36 @@ def filter_pages(doc, spec: str) -> None:
         if "-" in part:
             start, _, end = part.partition("-")
             try:
-                wanted.update(range(int(start), int(end) + 1))
-            except ValueError:
-                continue
+                start_n = int(start)
+                end_n = int(end)
+            except ValueError as exc:
+                raise XdocError(f"无法解析的页码范围: {part!r}（示例: 1-5,8）") from exc
+            if start_n > end_n:
+                raise XdocError(f"页码范围顺序反了: {part!r}（示例: 1-5,8）")
+            wanted.update(range(start_n, end_n + 1))
         else:
             try:
                 wanted.add(int(part))
-            except ValueError:
-                continue
+            except ValueError as exc:
+                raise XdocError(f"无法解析的页码: {part!r}（示例: 1-5,8）") from exc
     if not wanted:
-        return
+        raise XdocError(f"页码范围是空的: {spec!r}（示例: 1-5,8）")
+    return wanted
+
+
+def filter_pages(doc, spec: str, *, strict: bool = True) -> None:
+    """按 "1-5,8" 之类的规格筛选章节（页/幻灯片/表）。
+
+    strict=True 时，选不中任何一节就报错（避免"读到了空文档却以为成功"）；
+    读目录时传 strict=False，因为不同文件的页数本来就不一样。
+    """
+    wanted = parse_page_spec(spec)
+    total = len(doc.sections)
     doc.sections = [s for i, s in enumerate(doc.sections, start=1) if i in wanted]
+    if strict and total and not doc.sections:
+        raise XdocError(
+            f"指定的范围 {spec!r} 超出文档范围（文档共 {total} 节，可用 1-{total}）"
+        )
 
 
 def _handlers():

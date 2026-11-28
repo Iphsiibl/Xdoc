@@ -12,6 +12,7 @@ reject binary input, and images of pages are unreadable without OCR. Always go t
 
 ```
 read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline=False,
+     grep=None, grep_regex=False, grep_context=0, grep_limit=50,
      ocr="auto", asr="auto", asr_model=None, tables="auto", images="refs", front_matter=True)
 ```
 
@@ -21,6 +22,10 @@ read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline
 - `outline`: `true` returns only the structure — headings and anchors, no body text. Use it as the
   first call on a long document to learn its shape, then fetch the parts you need with `pages`.
   A 64-page Chinese wiki goes from ~126k chars to ~5k (4%).
+- `grep`: return only the passages containing this term (literal, case-insensitive). `grep_regex`
+  treats it as a regular expression, `grep_context` adds N lines around each hit, `grep_limit` caps
+  how many hits come back. The front-matter reports the total number of hits even when the list is
+  cut short. `grep` and `outline` cannot be combined.
 - `format`: `markdown` (default, best for reading), `json` (structure/values you must query precisely),
   `text` (plainest).
 - `pages`: page/slide ranges such as `1-5,8` — narrow the read instead of reading a whole book.
@@ -33,14 +38,15 @@ read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline
   the cache hit/miss flag and the continuation cursor.
 
 Errors come back as tool errors (`isError: true`) with the reason in the text (e.g. "文件不存在: …",
-"无效的 cursor: …"). Fix the path or install the missing plugin and retry — never treat an error
-message as document content.
+"无效的 cursor: …", "指定的范围 '999' 超出文档范围（文档共 64 节，可用 1-64）"). Fix the path or
+install the missing plugin and retry — never treat an error message as document content.
 
 ## Recommended order (saves tokens)
 
 1. `read(path, outline=true)` — see the structure.
-2. `read(path, pages="7-9")` — pull only the pages you need.
-3. `read(path, cursor="…")` — continue when the output is still too long.
+2. `read(path, grep="关键词")` — only the passages that mention it.
+3. `read(path, pages="7-9")` — pull only the pages you need.
+4. `read(path, cursor="…")` — continue when the output is still too long.
 
 ## Missing plugins
 
@@ -48,10 +54,10 @@ OCR (scanned pages, images), speech-to-text (audio/video) and video frame extrac
 plugins. If a read fails with an install command, run it and retry:
 
 ```bash
-xdoc plugin add ocr      # RapidOCR / PP-OCRv6, ~60MB, CPU, Chinese+English
-xdoc plugin add asr      # faster-whisper, ~500MB, general purpose
-xdoc plugin add asr-zh   # FunASR Paraformer-zh, ~2GB, better Chinese
-xdoc plugin add media    # ffmpeg, ~90MB, video frames + audio extraction
+xdoc plugin add ocr      # RapidOCR / PP-OCRv6, ~280MB, CPU, Chinese+English
+xdoc plugin add asr      # faster-whisper, ~730MB, general purpose
+xdoc plugin add asr-zh   # FunASR Paraformer-zh, ~3.2GB, better Chinese
+xdoc plugin add media    # ffmpeg, ~210MB, video frames + audio extraction
 ```
 
 Everything runs offline once installed; the tool never calls a cloud service.
@@ -65,6 +71,7 @@ the source exactly (amounts, dates, IDs). Anchor lines mark the origin of each c
 - PowerPoint: `<!-- slide 2 -->`
 - Excel: `<!-- sheet: 汇总 -->`
 - Audio/video: `<!-- t=00:00:12 -->`
+- HTML: `<!-- section:0 -->`, EPUB: `<!-- chapter:0 -->`
 - Directory read: `<!-- file:report.pdf page 3 -->`
 
 Cite these anchors when answering ("on page 3 of the PDF…", "slide 2 says…"), so the answer can

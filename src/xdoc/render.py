@@ -53,7 +53,10 @@ def _front_matter(doc: Document) -> str:
     for key, value in meta.items():
         if value is None:
             continue
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, dict):
+            # 字典用 JSON 流式写法（YAML 的 flow mapping，JSON 是它的子集）
+            rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        elif isinstance(value, (list, tuple)):
             if any(isinstance(item, dict) for item in value):
                 # 列表里带结构（如目录模式的 files）就用 JSON 流式写法，YAML 也能解析
                 rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))

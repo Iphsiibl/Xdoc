@@ -69,6 +69,20 @@ async def main() -> None:
             for block in result.content:
                 print(getattr(block, "text", block))
 
+            print("\n=== 调用：检索（grep）===")
+            result = await session.call_tool(
+                "read",
+                {
+                    "path": str(ROOT / "samples" / "html"),
+                    "grep": "wikipedia",
+                    "grep_limit": 3,
+                    "grep_context": 1,
+                },
+            )
+            print("isError:", result.is_error)
+            for block in result.content:
+                print(getattr(block, "text", block))
+
 
 if __name__ == "__main__":
     asyncio.run(main())

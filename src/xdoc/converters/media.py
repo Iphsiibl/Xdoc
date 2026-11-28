@@ -16,7 +16,7 @@ from pathlib import Path
 from ..assets import AssetStore
 from ..errors import XdocError
 from ..ir import Block, Document, Section
-from ..options import ReadOptions
+from ..options import ReadOptions, notify
 from ..plugins import PluginManager
 
 
@@ -88,6 +88,7 @@ def _run_asr(manager: PluginManager, plugin: str, backend: str, audio: Path,
         "language": options.asr_language,
         "backend": backend,
     }
+    notify(options, f"正在用 {plugin} 做语音转写（模型加载 + 转写，可能要几十秒）…")
     result = manager.run_worker(plugin, payload)
     if result.get("error"):
         raise XdocError(f"ASR 失败: {result['error']}")
@@ -152,6 +153,7 @@ def convert_audio(path: Path, options: ReadOptions, assets: AssetStore) -> Docum
     if path.suffix.lower() != ".wav":
         tmpdir = Path(tempfile.mkdtemp(prefix="xdoc-audio-"))
         target = tmpdir / "audio.wav"
+        notify(options, "正在抽音轨（ffmpeg，可能要十几秒）…")
         if _extract_audio(manager, path, target):
             audio_for_asr = target
         else:
@@ -233,6 +235,7 @@ def convert_video(path: Path, options: ReadOptions, assets: AssetStore) -> Docum
                     section.add(block)
                 meta["segments"] = len(segments)
 
+        notify(options, "正在抽关键帧（ffmpeg）…")
         frames = _extract_frames(manager, path, assets, duration, section)
         if frames:
             meta["frames"] = frames

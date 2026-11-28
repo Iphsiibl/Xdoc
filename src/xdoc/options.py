@@ -9,9 +9,25 @@ from __future__ import annotations
 import base64
 import binascii
 from dataclasses import dataclass
+from typing import Callable
 
 from .errors import XdocError
 from .ir import Block, Document, Section
+
+
+@dataclass
+class SearchSpec:
+    """一次检索的条件。
+
+    pattern 默认按字面匹配（忽略大小写）；regex=True 时按正则。
+    context 是命中行前后各带几行；limit 是最多返回多少条命中。
+    """
+
+    pattern: str
+    regex: bool = False
+    ignore_case: bool = True
+    context: int = 0
+    limit: int = 50
 
 
 @dataclass
@@ -33,6 +49,15 @@ class ReadOptions:
     plugin_dir: str | None = None
     outline: bool = False           # True = 只给结构（标题+锚点），不给正文
     use_cache: bool = True          # False = 跳过解析缓存，强制重新解析
+    search: SearchSpec | None = None  # 非空 = 只返回命中的位置与片段
+    on_progress: Callable[[str], None] | None = None  # 进度回调（CLI 用它写 stderr）
+
+
+def notify(options: ReadOptions, message: str) -> None:
+    """报一声进度：有回调就报，没有就安静干活。"""
+    callback = options.on_progress
+    if callback is not None:
+        callback(message)
 
 
 def estimate_tokens(text: str) -> int:

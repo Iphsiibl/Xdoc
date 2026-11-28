@@ -13,7 +13,7 @@ from pathlib import Path
 from ..assets import AssetStore
 from ..errors import XdocError
 from ..ir import Document
-from ..options import ReadOptions
+from ..options import ReadOptions, notify
 
 CANDIDATES = [
     r"C:\Program Files\LibreOffice\program\soffice.exe",
@@ -58,6 +58,7 @@ def _convert_to(path: Path, target_ext: str) -> Path:
 def _convert_legacy(path: Path, target: str, options: ReadOptions, assets: AssetStore) -> Document:
     from . import convert as dispatch
 
+    notify(options, f"正在用 LibreOffice 转换旧格式 {path.suffix}（可能要十几秒）…")
     converted = _convert_to(path, target)
     try:
         doc = dispatch(converted, options, assets)

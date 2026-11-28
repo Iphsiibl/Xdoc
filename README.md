@@ -18,6 +18,7 @@
 - **可选插件**：OCR / ASR / ffmpeg 跑在隔离 venv 里；图片与抽帧落到资产目录。
 
 📖 **完整使用手册**（安装、参数表、输出契约、插件、按任务查、故障排查）→ [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
+　术语表 → [`GLOSSARY.md`](GLOSSARY.md)　｜　决策记录 → [`docs/adr/`](docs/adr/)
 
 ## 安装
 
@@ -41,11 +42,11 @@ uv tool install --force .
 可选引擎插件（按需下载、随插随用、可随时卸载）：
 
 ```bash
-xdoc plugin list              # 查看插件与状态
-xdoc plugin add ocr           # 本地 OCR（RapidOCR / PP-OCRv6，约 60MB）
-xdoc plugin add asr           # 本地语音转写·通用（faster-whisper small，约 500MB）
-xdoc plugin add asr-zh        # 本地语音转写·中文（FunASR Paraformer-zh，约 2GB）
-xdoc plugin add media         # ffmpeg（视频抽帧、音频抽取，约 90MB）
+xdoc plugin list              # 查看插件与状态（含实际占用）
+xdoc plugin add ocr           # 本地 OCR（RapidOCR / PP-OCRv6，约 280MB）
+xdoc plugin add asr           # 本地语音转写·通用（faster-whisper small，约 730MB）
+xdoc plugin add asr-zh        # 本地语音转写·中文（FunASR Paraformer-zh，约 3.2GB）
+xdoc plugin add media         # ffmpeg（视频抽帧、音频抽取，约 210MB）
 xdoc plugin remove ocr        # 卸载（install/download、remove/uninstall 是同义词）
 ```
 
@@ -80,9 +81,10 @@ Windows 上若客户端不解析 PATH，写绝对路径：`"command": ["C:\\User
 | `cursor` | 续读游标，把上一步的 `next_cursor` 原样传回 |
 | `pages` | 页/幻灯片/表范围，如 `1-5,8` |
 | `outline` | 只要结构不要正文（标题 + 锚点），适合先摸清文档再定点读 |
+| `grep` / `grep_regex` / `grep_context` / `grep_limit` | 只返回包含关键词的片段（默认字面匹配、忽略大小写） |
 | `ocr` / `asr` / `asr_model` / `tables` / `images` / `front_matter` | 感知与渲染开关，取值见下表与手册 |
 
-推荐的省 token 三步法：**`read(path, outline=true)` 看结构 → `read(path, pages="7-9")` 取正文 → `read(path, cursor=…)` 续读**。
+推荐的省 token 四步法：**`read(path, outline=true)` 看结构 → `read(path, grep="关键词")` 只取命中处 → `read(path, pages="7-9")` 取正文 → `read(path, cursor=…)` 续读**。
 
 仓库自带 Agent 技能 `skills/xdoc-read/SKILL.md`（复制到 `~/.agents/skills/xdoc-read/` 或 `~/.claude/skills/` 即可用），
 告诉 Agent 什么时候该用这个工具、怎么按锚点引用原文；装上 MCP 与技能后，Agent 会自动选它。
@@ -97,14 +99,17 @@ xdoc read book.pdf --max-tokens 8000      # 超长自动截断并给出 next_cur
 xdoc read book.pdf --cursor <next_cursor> # 续读
 xdoc read slides.pptx --pages 1-5,8
 xdoc read ./docs --outline                # 读整个目录：合并成一份，锚点带文件名
+xdoc grep "Transformer" book.pdf          # 检索：只给命中位置与片段
+xdoc grep "参考文献" ./docs --context 1    # 在整个目录里检索，带上下文行
 xdoc read paper.pdf --tables on           # 强制逐页做表格识别（默认 auto：只认有画线的）
 xdoc read paper.pdf --no-cache            # 跳过解析缓存，强制重新解析
 xdoc cache info                           # 看缓存占用
 xdoc cache clear                          # 清理解析缓存
-xdoc doctor                               # 检查依赖与插件
+xdoc doctor                               # 检查依赖与插件（含修复建议）
 ```
 
 CLI 默认不限 token（保持既有习惯），需要预算时自己加 `--max-tokens`；MCP 侧默认给 30000 的预算，避免一次把十几万字塞进上下文。
+解析与插件安装过程都有进度提示（写在 stderr，`-q` 可关），不会对着一个静默的终端等几分钟。
 
 ## 输出契约
 
@@ -112,6 +117,7 @@ CLI 默认不限 token（保持既有习惯），需要预算时自己加 `--max
 ---
 source: /abs/path/report.pdf
 kind: pdf
+sections: 12
 pages: 12
 chars: 48123
 sha256: ...
@@ -128,11 +134,12 @@ sha256: ...
 | 合同 | 1,234.00 |
 ```
 
-- PDF 页锚点 `<!-- page N -->`，PPT `<!-- slide N -->`，Excel `<!-- sheet: 名称 -->`，音视频 `<!-- t=00:00:12 -->`。
+- PDF 页锚点 `<!-- page N -->`，PPT `<!-- slide N -->`，Excel `<!-- sheet: 名称 -->`，音视频 `<!-- t=00:00:12 -->`，HTML `<!-- section:N -->`，EPUB `<!-- chapter:N -->`。
 - 读目录时锚点带文件名：`<!-- file:report.pdf page 3 -->`，front-matter 的 `files` 字段列出每个文件的类型与体量，`skipped` 字段说明哪些文件被跳过、为什么。
 - `max_tokens` 截断时，开头的 front-matter 会带 `truncated: true` 与 `next_cursor`。
 - `cursor` 坐标始终相对完整文档，可连续续读（表格按行续，文本按字符续）。
 - front-matter 里的 `cache: hit|miss` 说明这次用的是解析缓存还是重新解析的。
+- 检索时 front-matter 里的 `search:` 给出命中总数与本次返回条数。
 
 ## 离线与隐私
 

@@ -64,6 +64,7 @@ CLI 与 MCP **共用同一个内核**（`api.read_document`），同一个文件
 
 ```bash
 xdoc read <path> [选项]
+xdoc grep <pattern> <path> [选项]   # 检索：只给出命中的位置与片段
 xdoc plugin list | add <name> | remove <name>
 xdoc cache info | clear          # 解析缓存：看占用 / 清空
 xdoc doctor
@@ -78,20 +79,30 @@ xdoc --version
 | `--format` | `markdown` / `text` / `json` | `markdown` | 输出格式 |
 | `--max-tokens` | 整数 | 不限 | token 预算；超出即截断，并在 front-matter 给出 `next_cursor`（`0` = 不限） |
 | `--cursor` | 字符串 | 无 | 续读游标（接上一次的 `next_cursor`） |
-| `--pages` | `1-5,8` | 全部 | 按序号筛选章节：PDF 页 / PPT 幻灯片 / Excel 工作表 |
+| `--pages` | `1-5,8` | 全部 | 按序号筛选章节：PDF 页 / PPT 幻灯片 / Excel 的**第 N 个表格块**（Excel 不是工作表）；越界会报错而不是静默返回空 |
 | `--outline` | 开关 | 关 | 只输出结构（标题 + 锚点），不要正文；适合先看目录再定点读 |
 | `--ocr` | `auto` / `on` / `off` / `vlm` | `auto` | OCR 开关（需装 `ocr` 插件）。`vlm` 目前与 `on` 等效（本地 doc-VLM 未接入） |
 | `--asr` | `auto` / `on` / `off` / `zh` / `whisper` | `auto` | `zh`=中文 FunASR；`whisper`=通用 faster-whisper；`auto`=自动挑引擎（详见 §4.3） |
-| `--asr-model` | 如 `small` / `large-v3` | `small` | ASR 模型 |
+| `--asr-model` | 如 `small` / `large-v3` | 不传=引擎默认 | 不传时 `asr` 用 `small`；`asr-zh` 用 Paraformer-zh |
 | `--tables` | `auto` / `on` / `off` | `auto` | PDF 表格识别：`auto`=只对有画线的页识别（快）；`on`=逐页识别（慢）；`off`=不识别 |
 | `--no-images` | 开关 | 关 | 不提取内嵌图片（更快、更小输出） |
-| `--no-front-matter` | 开关 | 关 | 不输出元数据头 |
+| `--no-front-matter` | 开关 | 关 | 不输出元数据头（只对 `markdown` 有意义，`text`/`json` 本来就没有 front-matter） |
 | `--no-cache` | 开关 | 关 | 跳过解析缓存，强制重新解析 |
+| `-q, --quiet` | 开关 | 关 | 不显示进度提示（进度写在 stderr，不影响 stdout 的正文） |
 | `-o, --output` | 文件路径 | 标准输出 | 写文件而不是打印 |
 
 `path` 可以是**目录**：会把目录里所有能读的文件合并成一份文档（锚点带文件名，见 §3.2）。
 
-退出码：`0` 成功；`2` 业务错误（stderr 打印 `错误: …`）；`1` 其它异常；`130` Ctrl+C。
+`xdoc grep` 的选项（在 `xdoc read` 的选项之外多这几个）：
+
+| 选项 | 取值 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `--regex` | 开关 | 关 | 把检索词当**正则表达式**；写错会明确报错 |
+| `--case-sensitive` | 开关 | 关 | 区分大小写（默认忽略） |
+| `--context` | 整数 | `0` | 命中行前后各带几行上下文 |
+| `--limit` | 整数 | `50` | 最多返回多少条命中（stderr 会报出命中总数） |
+
+退出码：`0` 成功；`2` 业务错误（stderr 打印 `错误: …`）；`1` 其它异常；`130` Ctrl+C（会打印「已取消」）。
 
 常用例子：
 
@@ -106,6 +117,8 @@ xdoc read ./docs --outline                   # 读整个目录：合并成一份
 xdoc read paper.pdf --tables on               # 强制逐页表格识别
 xdoc read scan.pdf --ocr on                   # 强制 OCR（扫描件）
 xdoc read talk.mp3 --asr zh --asr-model small # 中文转写
+xdoc grep "Transformer" paper.pdf             # 只找命中位置，不给全文
+xdoc grep "参考文献" ./docs --context 1        # 在整个目录里检索，带上下文行
 ```
 
 ### 2.2 MCP（给 Agent）
@@ -143,14 +156,19 @@ Windows 上客户端不解析 PATH 时写绝对路径：
 | `cursor` | string? | 无 | 续读游标 |
 | `pages` | string? | 无 | 如 `1-5,8` |
 | `outline` | bool | `false` | 只要结构不要正文（标题 + 锚点） |
+| `grep` | string? | 无 | 只返回包含这个词的片段（默认按字面匹配、忽略大小写） |
+| `grep_regex` | bool | `false` | `grep` 按正则解释 |
+| `grep_context` | int | `0` | 命中行前后各带几行上下文 |
+| `grep_limit` | int | `50` | 最多返回多少条命中 |
 | `ocr` | string | `auto` | `auto` / `on` / `off` / `vlm` |
 | `asr` | string | `auto` | `auto` / `on` / `off` / `zh` / `whisper` |
-| `asr_model` | string? | `small` | 模型名 |
+| `asr_model` | string? | 无 | 模型名；不传时 `asr` 用 `small`、`asr-zh` 用 Paraformer-zh |
 | `tables` | string | `auto` | `auto` / `on` / `off` |
 | `images` | string | `refs` | `refs`=图片抽到资产目录并在正文给路径；`none`=不抽 |
 | `front_matter` | bool | `true` | 是否带元数据头 |
 
 > MCP 版比 CLI 多一个 `images` 参数；CLI 里用 `--no-images` 等价。
+> MCP 侧**没有**缓存开关（服务端始终用缓存，缓存对读的结果没有影响）；CLI 侧有 `--no-cache`。
 > **MCP 默认 `max_tokens=30000`**：一次读十几万字会占满模型上下文，所以默认给预算；确实要全文时传 `max_tokens=0`。CLI 默认不限，保持既有习惯。
 > **出错时工具返回 `isError=true`**，正文里写明原因（例如「文件不存在: …」），不会被当成正常结果。
 > 工具描述里已经写清「只转换，不摘要」、省 token 的三步用法与插件缺失时的安装命令，Agent 会照着做。
@@ -159,7 +177,8 @@ Windows 上客户端不解析 PATH 时写绝对路径：
 
 1. `read(path, outline=true)` —— 只要结构（标题 + 锚点），几十行就能看清整份文档；
 2. `read(path, pages="7-9")` —— 按锚点定位到真正要的那几页；
-3. `read(path, cursor="…")` —— 内容仍太长时按游标续读。
+3. `read(path, grep="关键词")` —— 只取命中处的片段（整篇里只有几处相关时最省）；
+4. `read(path, cursor="…")` —— 内容仍太长时按游标续读。
 
 **让 Agent 主动用它**：仓库自带 `skills/xdoc-read/SKILL.md`，复制到 `~/.agents/skills/xdoc-read/`（或 `~/.claude/skills/`）即可；它告诉 Agent 什么时候该用这个工具、怎么按锚点引用原文。
 
@@ -195,12 +214,14 @@ assets_root: C:\Users\me\.local\share\xdoc\assets
 | `sha256` / `bytes` | 原文件指纹与大小，便于确认「读的是哪一份」 |
 | `assets_root` | 图片 / 抽帧的落盘目录 |
 | `cache` | `hit` = 用了解析缓存；`miss` = 这次重新解析的 |
-| 类型专属 | PDF 有 `pages`；Excel 有 `sheets`；音视频有 `duration` / `fps`；OCR 结果带 `avg_score` 置信度 |
+| 类型专属 | PDF 有 `pages`；Excel 有 `sheets`；音视频有 `duration` / `fps` |
+| OCR | **只有图片 OCR** 的块带 `meta.avg_score`（置信度）；扫描 PDF 的 OCR 结果没有置信度 |
 | 读目录时 | `file_count`（读到几个文件）、`files`（每个文件的类型与体量）、`skipped`（哪些文件被跳过、为什么） |
 | `outline` 模式 | `outline: true`，表示这次只给结构 |
+| 检索时 | `search:` 给出 `pattern` / `total`（命中总数）/ `returned`（本次返回）/ `truncated`（是否被 limit 截断） |
 | 截断时 | `truncated: true` 与 `next_cursor` 会出现在这里 |
 
-用 `--no-front-matter` 或 `front_matter=false` 可关闭。
+用 `--no-front-matter` 或 `front_matter=false` 可关闭（只对 `markdown` 有效；`text` / `json` 本身就没有 front-matter）。
 
 ### 3.2 锚点（引用的坐标系）
 
@@ -210,11 +231,13 @@ assets_root: C:\Users\me\.local\share\xdoc\assets
 | PPT | `<!-- slide 2 -->` |
 | Excel | `<!-- sheet: 销售明细 -->` |
 | 音频 / 视频 | `<!-- t=00:00:00 -->`（整段一个锚点；每条转写自带 `[00:00.880]` 时间戳前缀） |
-| DOCX / HTML / Markdown 等连续文档 | `<!-- doc:0 -->`（整篇一个章节） |
+| DOCX / Markdown / 纯文本 | `<!-- doc:0 -->`（整篇一个章节） |
+| HTML | `<!-- section:0 -->`（按 h1/h2 切段） |
+| EPUB | `<!-- chapter:0 -->`（按章切分） |
 | 图片 | `<!-- image:0 -->` |
 | 读目录时 | `<!-- file:report.pdf page 3 -->`（前面多一段文件名，JSON 里是 `file` 字段） |
 
-锚点同时出现在 Markdown 与 JSON 里（JSON 中是 `anchor` 字段，值为 `page:3` / `slide:2` / `sheet:销售明细` / `t=00:00:12` 这种原始形式）。
+锚点同时出现在 Markdown 与 JSON 里（JSON 中是 `anchor` 字段，值为 `page:3` / `slide:2` / `sheet:销售明细` / `doc:0` / `section:0` / `chapter:0` / `time:00:00:00` 这种原始形式；Markdown 里的 `t=00:00:00` 是它的展示形式）。
 
 有了锚点，Agent 的回答可以精确到「第 3 页」「第 2 张幻灯片」「第 12 秒」，而不是含糊的「第几部分」。
 
@@ -331,8 +354,49 @@ xdoc cache clear                    # 清空
 
 - 缓存键 = **文件内容 sha256** + 影响解析结果的选项（`tables` / `ocr` / `asr` / `images` …）+ xdoc 版本 + 已装插件清单。文件改了或选项变了就自动重新解析，不会读到过期结果。
 - **页码筛选（`--pages`）不参与缓存键**：缓存里存的是未筛选的全文，切页不需要重新解析。
+- **检索也不参与缓存键**：缓存里存的是全文，换个词检索不用重新解析。
 - 缓存目录：`~/.local/share/xdoc/cache`（可用环境变量 `XDOC_CACHE_DIR` 改）；`--no-cache` 可跳过缓存。
 - front-matter 的 `cache: hit|miss` 说明这次走的是缓存还是重新解析。
+
+### 3.8 检索：只取命中处，不给全文
+
+```bash
+xdoc grep "Transformer" paper.pdf --context 1
+xdoc grep "参考文献" ./docs --limit 20
+xdoc grep "def .*\\(" code.py --regex
+```
+
+输出只包含命中的片段（按原文顺序、按章节分组），并保留锚点：
+
+```markdown
+---
+kind: pdf
+search: {"pattern":"Transformer","regex":false,"ignore_case":true,"context":1,"total":2,"returned":2,"truncated":false}
+---
+<!-- page 24 -->
+## 注意力机制
+Transformer 的核心是自注意力……
+```
+
+（`search` 是一整行的 JSON，YAML 也认；`total` 是命中总数，`returned` 是本次返回条数。）
+
+- 默认按**字面**匹配、**忽略大小写**；`--regex` 按正则，`--case-sensitive` 区分大小写；
+- `--context N` 让命中行前后各带 N 行；`--limit N` 限制返回条数（front-matter 里的 `total` 始终是命中总数）；
+- 行号 = 该章节正文里的第几行（Markdown / 纯文本里是第 N 个**非空**行——转换器本来就不保留空行）；
+- 目录模式下在**所有能读的文件**里检索，命中会标出来自哪个文件（`<!-- file:xxx.pdf page 3 -->`）；
+- 检索与 `outline` 互斥（一个看结构、一个找内容），同时用会报错；
+- 没有命中时给一段说明而不是空白输出。
+
+MCP 侧对应参数：`read(path, grep="关键词")`、`grep_regex` / `grep_context` / `grep_limit`。
+
+### 3.9 类型识别：看内容，不看扩展名
+
+xdoc 先看**文件内容**（magic bytes、zip 内部结构），再看扩展名：
+
+- 改错了扩展名的文件照样能读对（`report.pdf` 其实是 docx → 按 docx 读）；
+- 任何 UTF-8 文本文件都能当纯文本读（`.json` / `.yaml` / `.py` 等）；
+- `.doc` / `.ppt` / `.xls` 会先经 LibreOffice 转成现代格式再读，所以读出来的 `kind` 是 `docx` / `pptx` / `xlsx`；
+- 完全认不出的二进制会被跳过（在目录模式下列进 `skipped`），单文件模式则报「暂不支持的文件类型」。
 
 ---
 
@@ -340,15 +404,15 @@ xdoc cache clear                    # 清空
 
 基础能力（解析 PDF/Office/HTML/文本）**零重依赖**，随包就能用。以下插件是可选增强：装上即生效，卸载即回到基础能力。
 
-| 插件 | 作用 | 体积 | 什么时候需要 |
+| 插件 | 作用 | 体积（实测） | 什么时候需要 |
 | --- | --- | --- | --- |
-| `ocr` | 本地 OCR（RapidOCR / PP-OCRv6，中英文，CPU） | 约 60MB（模型随包装好） | 扫描 PDF、截图、照片、含图文字的 PDF |
-| `asr` | 通用语音转写（faster-whisper small） | 约 500MB | 英文、多语种录音 |
-| `asr-zh` | 中文语音转写（FunASR Paraformer-zh） | 约 2GB | 中文录音、会议、访谈 |
-| `media` | ffmpeg / ffprobe | 约 90MB | 视频抽帧、音频抽取 |
+| `ocr` | 本地 OCR（RapidOCR / PP-OCRv6，中英文，CPU） | 约 280MB | 扫描 PDF、截图、照片、含图文字的 PDF |
+| `asr` | 通用语音转写（faster-whisper small） | 约 730MB | 英文、多语种录音 |
+| `asr-zh` | 中文语音转写（FunASR Paraformer-zh） | 约 3.2GB | 中文录音、会议、访谈 |
+| `media` | ffmpeg / ffprobe | 约 210MB | 视频抽帧、音频抽取 |
 
 ```bash
-xdoc plugin list              # 看状态
+xdoc plugin list              # 看状态（含每个插件的实际占用）
 xdoc plugin add ocr           # 安装（install / download 是同义词）
 xdoc plugin remove ocr        # 卸载（uninstall 是同义词）
 ```
@@ -356,6 +420,8 @@ xdoc plugin remove ocr        # 卸载（uninstall 是同义词）
 - 插件装在 `~/.local/share/xdoc/plugins/<name>/`：Python 插件含独立 `venv/` 与 `models/`，`media` 含 `ffmpeg.exe` / `ffprobe.exe`。**每个插件在自己的隔离 venv 里跑**，不会污染 xdoc 本体。
 - **运行期不联网**：模型只在安装时下载一次，之后离线可用（验收时把 `HTTP(S)_PROXY` 指向黑洞仍能正常 OCR/转写）。
 - 插件是 worker 子进程：主进程只传文件路径与 JSON，不加载模型。
+- **安装过程有输出**：依赖下载、模型预下载的进度实时打印在 stderr，不会对着一个静默的终端等几分钟。
+- `xdoc plugin list` 与 `xdoc doctor` 会显示**实际占用**（磁盘上的真实体积），可以拿它和上表的估计值对照。
 
 ### 4.1 `asr` 的 auto 是怎么挑引擎的
 
@@ -389,7 +455,7 @@ xdoc read photo.jpg
 ```
 
 - 扫描 PDF 会逐页以 200dpi 栅格化后 OCR，识别结果替换掉「本页没有文本层」的提示。
-- 识别置信度写在每个识别块的 `meta.avg_score` 里（用 `--format json` 可见），可判断是否可信。
+- **图片** OCR 的置信度写在识别块的 `meta.avg_score` 里（用 `--format json` 可见）；扫描 PDF 的 OCR 结果**没有**置信度（PDF 侧只给文字）。
 - 极小字号（<8pt）可能识别不全 —— 这是 200dpi + 小模型的边界。
 
 ### 5.3 音频
@@ -426,7 +492,7 @@ xdoc plugin add media        # ffmpeg
 xdoc read movie.mp4
 ```
 
-- 输出音轨转写（带时间戳锚点）+ **关键帧 PNG**（默认每 12 秒一帧，落在资产目录，正文里给绝对路径）。模型可以直接看这些帧做画面理解。
+- 输出音轨转写（带时间戳锚点）+ **关键帧 PNG**（**总共最多 12 帧**，均匀分布在整段时长上，落在资产目录，正文里给绝对路径）。模型可以直接看这些帧做画面理解。
 
 真实输出（`--asr off` 时只有帧，装了 ASR 插件则前面还有转写段落）：
 
@@ -449,7 +515,7 @@ frames: 12
 ```bash
 xdoc read data.xlsx                  # Markdown 表格
 xdoc read data.xlsx --format json    # 结构化
-xdoc read data.xlsx --pages 1-3      # 只看前 3 个工作表
+xdoc read data.xlsx --pages 1-3      # 只看前 3 个表格块（Excel 的「节」是表格，不是工作表）
 ```
 
 - 日期时间按 **ISO 8601** 输出（`2014-01-01T00:00:00`），避免地区格式歧义。
@@ -514,9 +580,9 @@ xdoc read data.csv
 xdoc read book.epub
 ```
 
-- HTML 会剥掉 script/style/form 等非正文节点，按 h1/h2/h3 切分结构。
+- HTML 会剥掉 script/style/form 等非正文节点，按 h1/h2/h3 切分结构（锚点是 `<!-- section:N -->`）。
 - CSV 自动猜分隔符（逗号/分号/制表符），输出 Markdown 表格。
-- EPUB 按 spine 顺序逐章输出。
+- EPUB 按 spine 顺序逐章输出（锚点是 `<!-- chapter:N -->`）。
 
 ---
 
@@ -525,12 +591,13 @@ xdoc read book.epub
 1. **别把原始 PDF 丢给内置 reader**。很多模型不支持 pdf 输入，直接传会失败；必须先转成文本/Markdown。
 2. **先 read，再引用**。输出里的 `<!-- page N -->` 锚点就是引用坐标，回答时带上它。
 3. **长文档先 `outline=true`**：几十行看清结构，再按 `--pages`/`pages` 取正文，别一上来就全文。
-4. **看到 `truncated: true` 就续读**：把 `next_cursor` 传回去，直到没有 `next_cursor` 为止（一次对话里可以串好几轮）。
-5. **一次要一批文件就传目录**：目录会合并成一份文档，锚点带文件名（`<!-- file:report.pdf page 3 -->`）。
-6. **需要 OCR / 转写 / 抽帧时先装插件**。没装时工具会明确告诉你 `xdoc plugin add ocr` 之类命令，别自己猜。
-7. **想要精确结构就用 `format=json`**，想要好读的文本就用 `markdown`。
-8. **出错时工具返回 `isError=true`**，正文里写明原因（如「文件不存在: …」）；按提示改路径重试即可，别把错误当内容继续用。
-9. 细节见 `skills/xdoc-read/SKILL.md`。
+4. **只关心某个词就用 `grep`**：只返回命中处的片段，比全文省一个数量级的 token。
+5. **看到 `truncated: true` 就续读**：把 `next_cursor` 传回去，直到没有 `next_cursor` 为止（一次对话里可以串好几轮）。
+6. **一次要一批文件就传目录**：目录会合并成一份文档，锚点带文件名（`<!-- file:report.pdf page 3 -->`）。
+7. **需要 OCR / 转写 / 抽帧时先装插件**。没装时工具会明确告诉你 `xdoc plugin add ocr` 之类命令，别自己猜。
+8. **想要精确结构就用 `format=json`**，想要好读的文本就用 `markdown`。
+9. **出错时工具返回 `isError=true`**，正文里写明原因（如「文件不存在: …」）；按提示改路径重试即可，别把错误当内容继续用。
+10. 细节见 `skills/xdoc-read/SKILL.md`。
 
 ---
 
@@ -542,6 +609,11 @@ xdoc read book.epub
 | `错误: 目录里没有可读的文件: …` | 目录里全是认不出的格式 | 换目录；或先转成 PDF/文本 |
 | `错误: 文件不存在: …` | 路径错 | 用绝对路径 |
 | `错误: 无效的 cursor: …` | 游标被改写了 | 原样传回上一步的 `next_cursor`；不要自己拼 |
+| `错误: 指定的范围 '999' 超出文档范围（文档共 64 节，可用 1-64）` | `--pages` 越界 | 改成范围内的页码 |
+| `错误: 无法解析的页码 'abc'（示例: 1-5,8）` | `--pages` 写法不对 | 用 `1-5,8` 这种写法 |
+| `错误: 未知插件: xxx（可用: …）` | 插件名拼错 | 用 `xdoc plugin list` 里的名字 |
+| `错误: outline 与 search 不能同时用` | 同时要结构和内容 | 先 outline 定位，再按页/按词取正文 |
+| `错误: 指定的页/节范围 … 在这个目录里的任何文件里都不匹配` | 目录里没有这么长的文件 | 放宽 `--pages`，或单独读某个文件 |
 | 正文里出现「（图片内容需要 OCR 插件…）」 | 没装 `ocr` | `xdoc plugin add ocr` |
 | 扫描 PDF 每页都是「没有文本层」 | 没装 `ocr` | 同上；装好后自动 OCR |
 | 音频只有时长没有文字 | 没装 `asr` / `asr-zh` | 装插件；中文装 `asr-zh` |
@@ -550,7 +622,7 @@ xdoc read book.epub
 | Windows 终端中文显示异常 | 终端本身不支持 UTF-8 | 用 `-o out.md` 写文件；xdoc 内部已做编码兜底，不会崩 |
 | 大 PDF 很慢 | 表格识别 + 图片提取占大头 | `--pages` 缩小范围、`--tables off`、`--no-images`；同一文件第二次读会命中缓存 |
 | 中文 ASR 第一次特别慢 | 加载 1GB 模型（CPU） | 正常现象，之后同一进程很快 |
-| `xdoc doctor` 报核心依赖 `[缺失]` | 安装损坏 | 重新 `uv tool install --force xdoc` |
+| `xdoc doctor` 报核心依赖 `[缺失]` | 安装损坏 | 重新 `uv tool install --force xdoc-tools`（包名是 `xdoc-tools`，命令仍是 `xdoc`） |
 | 插件装完仍提示缺失 | 装到了别的目录 | `xdoc plugin list` 看状态；重装该插件 |
 
 ---
@@ -585,17 +657,19 @@ xdoc read book.epub
 | --- | --- | --- |
 | PDF（文本型） | `.pdf` | 按页锚点 + 标题层级 + 有画线的表格 |
 | PDF（扫描件） | `.pdf` | 同上，无文本层的页自动 OCR（需 `ocr` 插件） |
-| Word | `.docx` | 标题 / 列表 / 表格 / 超链接 / 内嵌图片 |
-| Word（旧） | `.doc` | 需 LibreOffice |
-| PowerPoint | `.pptx` / `.ppt` | 按幻灯片锚点 + 表格 + 备注 |
-| Excel | `.xlsx` / `.xlsm` | 按工作表锚点 + Markdown 表格；`.xls` 需 LibreOffice |
+| Word | `.docx` / `.docm` / `.dotx` | 标题 / 列表 / 表格 / 超链接 / 内嵌图片 |
+| Word（旧） | `.doc` | 需 LibreOffice；读出来的 `kind` 是 `docx` |
+| PowerPoint | `.pptx` / `.pptm` / `.potx` / `.ppt` | 按幻灯片锚点 + 表格 + 备注（旧 `.ppt` 需 LibreOffice） |
+| Excel | `.xlsx` / `.xlsm` / `.xltx` | 按工作表锚点 + Markdown 表格；`.xls` 需 LibreOffice |
 | 表格 | `.csv` / `.tsv` | 自动猜分隔符 → Markdown 表格 |
-| 网页 | `.html` / `.htm` | 去噪后按标题切段 |
-| Markdown / 纯文本 | `.md` / `.txt` | 原样保留结构 |
+| 网页 | `.html` / `.htm` / `.xhtml` | 去噪后按标题切段 |
+| Markdown / 纯文本 | `.md` / `.markdown` / `.txt` / `.log` | 原样保留结构 |
 | EPUB | `.epub` | 按章节顺序 |
-| 图片 | `.jpg` / `.png` / … | OCR 文字 + 尺寸等元信息（需 `ocr` 插件） |
-| 音频 | `.wav` / `.mp3` / … | 转写 + 时间戳（需 `asr` / `asr-zh` 插件） |
-| 视频 | `.mp4` / `.mov` / … | 转写 + 关键帧 PNG（需 `media` + ASR 插件） |
+| 图片 | `.jpg` / `.jpeg` / `.png` / `.webp` / `.gif` / `.bmp` / `.tif` / `.tiff` | OCR 文字 + 尺寸等元信息（需 `ocr` 插件） |
+| 音频 | `.wav` / `.mp3` / `.m4a` / `.flac` / `.aac` / `.ogg` / `.opus` | 转写 + 时间戳（需 `asr` / `asr-zh` 插件） |
+| 视频 | `.mp4` / `.mov` / `.mkv` / `.avi` / `.webm` / `.m4v` | 转写 + 关键帧 PNG（需 `media` + ASR 插件） |
+
+> 识别**以内容为准**（magic bytes / zip 结构），扩展名只是线索：改错扩展名的文件照样读得对；任何 UTF-8 文本文件都能当纯文本读（详见 §3.9）。
 
 ### 9.2 已知限制
 
@@ -620,5 +694,7 @@ uv run --extra dev pytest                    # 单元测试
 ```
 
 - 架构说明与图：[`docs/diagrams/xdoc-architecture.html`](diagrams/xdoc-architecture.html)
+- 术语表：[`GLOSSARY.md`](../GLOSSARY.md)
+- 决策记录：[`docs/adr/`](adr/)
 - 计划与踩坑记录：[`PLAN.md`](PLAN.md)
 - 发布说明：[`RELEASE.md`](RELEASE.md)

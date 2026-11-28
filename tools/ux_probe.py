@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import time
@@ -14,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from xdoc.api import read, read_document  # noqa: E402
 from xdoc.errors import XdocError  # noqa: E402
-from xdoc.options import ReadOptions  # noqa: E402
+from xdoc.options import ReadOptions, SearchSpec  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT: list[str] = []
@@ -36,13 +37,17 @@ def probe_error(title: str, fn) -> None:
     show(title + " (耗时)", f"{time.perf_counter() - t0:.2f}s")
 
 
-def cli(*args: str) -> subprocess.CompletedProcess:
+def cli(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    env = dict(os.environ)
+    if env_extra:
+        env.update(env_extra)
     return subprocess.run(
         [sys.executable, "-m", "xdoc.cli", *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
         cwd=str(ROOT),
+        env=env,
     )
 
 
@@ -88,6 +93,25 @@ def main() -> None:
     # 10) cache 命令
     proc = cli("cache", "info")
     show("10. xdoc cache info", f"exit={proc.returncode}\n{proc.stdout.strip()[:600]}")
+    # 11) 检索：只给命中处
+    doc = read(
+        ROOT / "samples" / "pdf" / "zh_wiki_python.pdf",
+        ReadOptions(search=SearchSpec(pattern="Transformer", limit=5)),
+    )
+    show("11. 检索命中", f"{len(doc)} 字符\n{doc[:600]}")
+    # 12) CLI 检索
+    proc = cli("grep", "Transformer", "samples/pdf/zh_wiki_python.pdf", "--limit", "3", "--context", "1")
+    show("12. CLI 检索", f"exit={proc.returncode}\n{proc.stdout.strip()[:600]}\nstderr={proc.stderr.strip()[:200]}")
+    # 13) 静默失败：页码越界 / 格式错，应该报错退出而不是假装成功
+    for args in (("read", "samples/pdf/en_dummy.pdf", "--pages", "999"),
+                 ("read", "samples/pdf/en_dummy.pdf", "--pages", "abc"),
+                 ("plugin", "add", "nosuch")):
+        proc = cli(*args)
+        show(f"13. 静默失败检查 {' '.join(args[1:])}",
+             f"exit={proc.returncode}（期望 2）\nstderr={proc.stderr.strip()[:200]}")
+    # 14) 非中文 Windows 编码下 --help 不能崩
+    proc = cli("--help", env_extra={"PYTHONIOENCODING": "cp1252"})
+    show("14. cp1252 编码下 --help", f"exit={proc.returncode}（期望 0）\n{proc.stdout.strip()[:200]}")
 
     print("".join(OUT))
 

@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,7 +44,7 @@ PLUGINS: dict[str, PluginSpec] = {
         description="扫描件/图片转文字（PP-OCRv6 ONNX 模型，纯 CPU，中英文）",
         deps=("rapidocr>=3.0", "onnxruntime>=1.16"),
         worker="ocr_worker.py",
-        approx_size="约 60MB（模型随包装好，运行期不联网）",
+        approx_size="约 280MB（实测：ONNX 运行时 + 模型，装完即可离线用）",
     ),
     "asr": PluginSpec(
         name="asr",
@@ -51,7 +52,7 @@ PLUGINS: dict[str, PluginSpec] = {
         description="音频/视频转文字，带时间戳（faster-whisper，多语言）",
         deps=("faster-whisper>=1.0", "av>=11,<19"),
         worker="asr_worker.py",
-        approx_size="约 500MB（含 small 模型，安装时下载）",
+        approx_size="约 730MB（实测：含 small 模型，安装时下载）",
         warmup=(
             "from faster_whisper import WhisperModel\n"
             "WhisperModel('small', device='cpu', compute_type='int8')\n"
@@ -63,7 +64,7 @@ PLUGINS: dict[str, PluginSpec] = {
         description="中文/中英混说转写（FunASR Paraformer-zh），带时间戳并自动恢复标点",
         deps=("funasr>=1.1.0", "modelscope>=1.13.0", "torch>=2.2", "torchaudio>=2.2"),
         worker="asr_worker.py",
-        approx_size="约 2GB（含 torch 与 Paraformer-zh 模型，安装时下载）",
+        approx_size="约 3.2GB（实测：含 torch 与 Paraformer-zh 模型，安装时下载）",
         index_url="https://download.pytorch.org/whl/cpu",
         warmup=(
             "from funasr import AutoModel\n"
@@ -76,7 +77,7 @@ PLUGINS: dict[str, PluginSpec] = {
         title="音视频处理 (ffmpeg/ffprobe)",
         description="抽音频轨、抽关键帧、读取时长/编码信息",
         kind="binary",
-        approx_size="约 90MB",
+        approx_size="约 210MB（实测：只保留 ffmpeg 与 ffprobe 两个可执行文件）",
     ),
 }
 
@@ -118,11 +119,26 @@ class PluginManager:
                 "kind": spec.kind,
                 "installed": self.is_installed(spec.name),
                 "approx_size": spec.approx_size,
+                "size_mb": round(self._dir_size(spec.name) / 1024 / 1024, 1),
             }
             if spec.name == "media":
                 info["ffmpeg"] = str(self.ffmpeg_path()) if self.ffmpeg_path() else None
             out.append(info)
         return out
+
+    def _dir_size(self, name: str) -> int:
+        """插件目录里实际占多少字节（宣称值只是估计，这里是事实）。"""
+        directory = self.plugin_dir(name)
+        if not directory.exists():
+            return 0
+        total = 0
+        for path in directory.rglob("*"):
+            try:
+                if path.is_file():
+                    total += path.stat().st_size
+            except OSError:  # pragma: no cover - 刚被删掉的文件
+                continue
+        return total
 
     # ---------- 安装 / 卸载 ----------
     def install(self, name: str) -> dict:
@@ -151,21 +167,28 @@ class PluginManager:
         uv = shutil.which("uv")
         try:
             if uv:
-                subprocess.run([uv, "venv", str(venv_dir), "--python", "3.12"],
-                               check=True, capture_output=True)
+                code, output = _run_step([uv, "venv", str(venv_dir), "--python", "3.12"])
+                if code:
+                    raise PluginError(f"安装 {spec.name} 失败: {output[-800:]}")
                 pip_cmd = [uv, "pip", "install", "--python", str(self.venv_python(spec.name))]
                 if spec.index_url:
                     pip_cmd += ["--index-url", spec.index_url,
                                 "--extra-index-url", "https://pypi.org/simple"]
-                subprocess.run(pip_cmd + list(spec.deps), check=True, capture_output=True)
+                code, output = _run_step(pip_cmd + list(spec.deps))
+                if code:
+                    raise PluginError(f"安装 {spec.name} 失败: {output[-800:]}")
             else:
-                subprocess.run([sys.executable, "-m", "venv", str(venv_dir)],
-                               check=True, capture_output=True)
-                subprocess.run([str(self.venv_python(spec.name)), "-m", "pip", "install", *spec.deps],
-                               check=True, capture_output=True)
-        except subprocess.CalledProcessError as exc:
-            detail = (exc.stderr or b"").decode("utf-8", "replace")[-800:]
-            raise PluginError(f"安装 {spec.name} 失败: {detail}") from exc
+                code, output = _run_step([sys.executable, "-m", "venv", str(venv_dir)])
+                if code:
+                    raise PluginError(f"安装 {spec.name} 失败: {output[-800:]}")
+                code, output = _run_step([str(self.venv_python(spec.name)), "-m", "pip",
+                                          "install", *spec.deps])
+                if code:
+                    raise PluginError(f"安装 {spec.name} 失败: {output[-800:]}")
+        except PluginError:
+            raise
+        except Exception as exc:  # pragma: no cover - 兜底
+            raise PluginError(f"安装 {spec.name} 失败: {exc}") from exc
 
         if spec.worker:
             source = WORKERS_DIR / spec.worker
@@ -176,12 +199,10 @@ class PluginManager:
         if spec.warmup:
             # 模型在安装期下载到插件目录里，运行期完全离线
             env = self._plugin_env(spec.name)
-            try:
-                subprocess.run([str(self.venv_python(spec.name)), "-c", spec.warmup],
-                               check=True, capture_output=True, env=env)
-            except subprocess.CalledProcessError as exc:
-                detail = (exc.stderr or b"").decode("utf-8", "replace")[-800:]
-                raise PluginError(f"{spec.name} 模型预下载失败: {detail}") from exc
+            code, output = _run_step([str(self.venv_python(spec.name)), "-c", spec.warmup],
+                                     env=env)
+            if code:
+                raise PluginError(f"{spec.name} 模型预下载失败: {output[-800:]}")
 
     def _install_ffmpeg(self, directory: Path) -> None:
         import urllib.request
@@ -193,23 +214,31 @@ class PluginManager:
                 FFMPEG_URL, headers={"User-Agent": "xdoc-plugin-installer/0.1"}
             )
             with urllib.request.urlopen(request, timeout=600) as resp, archive.open("wb") as out:
-                shutil.copyfileobj(resp, out)
+                total = int(resp.headers.get("Content-Length") or 0)
+                done = 0
+                next_report = 10 * 1024 * 1024
+                while True:
+                    chunk = resp.read(1024 * 256)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+                    done += len(chunk)
+                    if done >= next_report:
+                        total_text = f"/{total // (1024 * 1024)}MB" if total else ""
+                        print(f"  下载 ffmpeg: {done // (1024 * 1024)}MB{total_text}",
+                              file=sys.stderr, flush=True)
+                        next_report += 10 * 1024 * 1024
         except Exception as exc:
             raise PluginError(f"下载 ffmpeg 失败: {exc}") from exc
 
         with zipfile.ZipFile(archive) as zf:
             zf.extractall(directory)
         archive.unlink(missing_ok=True)
-        # 解压出来的目录结构是 ffmpeg-<version>-essentials/bin/
-        for candidate in directory.glob("*/bin/ffmpeg.exe"):
-            for tool in ("ffmpeg.exe", "ffprobe.exe"):
-                src = candidate.parent / tool
-                if src.exists():
-                    shutil.copy2(src, directory / tool)
+        _collect_ffmpeg_tools(directory)
 
     def uninstall(self, name: str) -> dict:
         if name not in PLUGINS:
-            raise PluginError(f"未知插件: {name}")
+            raise PluginError(f"未知插件: {name}（可用: {', '.join(PLUGINS)}）")
         directory = self.plugin_dir(name)
         existed = directory.exists()
         if existed:
@@ -284,6 +313,57 @@ class PluginManager:
             return json.loads(stdout.splitlines()[-1]) if stdout else {}
         except json.JSONDecodeError as exc:
             raise PluginError(f"插件 {name} 返回无法解析的结果: {stdout[:400]}") from exc
+
+
+def _collect_ffmpeg_tools(directory: Path) -> None:
+    """从解压出来的目录里挑出 ffmpeg 与 ffprobe，其余整棵树删掉。
+
+    官方压缩包解压后是 ffmpeg-<version>-essentials/，里面有 ffplay 和整套文档：
+    留着不用，白占 300MB；xdoc 只用 ffmpeg（转码）和 ffprobe（读信息）。
+    """
+    for candidate in directory.glob("*/bin/*"):
+        if not candidate.is_file():
+            continue
+        if candidate.stem.lower() not in ("ffmpeg", "ffprobe"):
+            continue
+        target = candidate.name
+        if os.name == "nt" and not target.endswith(".exe"):
+            target += ".exe"
+        shutil.copy2(candidate, directory / target)
+    for child in directory.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child, ignore_errors=True)
+    if not list(directory.glob("ffmpeg*")):
+        raise PluginError("ffmpeg 压缩包里没有找到 ffmpeg 可执行文件")
+
+
+def _run_step(cmd: list[str], *, env: dict[str, str] | None = None,
+              timeout: int = 3600) -> tuple[int, str]:
+    """跑一条外部命令。
+
+    输出实时转发到 stderr（安装过程有几百 MB，用户不该盯着一个静默的终端），
+    同时留一份尾部用于失败时的报错。
+    """
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        env=env,
+    )
+    tail: deque[str] = deque(maxlen=200)
+    try:
+        assert proc.stdout is not None
+        for raw in proc.stdout:
+            line = raw.decode("utf-8", "replace").rstrip()
+            if line:
+                print(line, file=sys.stderr, flush=True)
+                tail.append(line)
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise PluginError(f"命令超时（>{timeout}s）: {cmd[0]}") from None
+    return proc.returncode, "\n".join(tail)
 
 
 def _now() -> str:

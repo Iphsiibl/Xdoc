@@ -16,10 +16,16 @@ from .converters import convert, filter_pages
 from .detect import detect_kind
 from .errors import XdocError
 from .ir import Block, Document, Section
-from .options import ReadOptions, apply_budget
+from .options import ReadOptions, apply_budget, notify
 from .outline import build_outline
 from .plugins import PLUGINS, PluginManager
 from .render import render
+from .search import apply_search
+
+
+def _notify(options: ReadOptions, message: str) -> None:
+    """进度提示：有回调就报一声，没有就安静干活。"""
+    notify(options, message)
 
 
 def file_sha256(path: Path) -> str:
@@ -47,6 +53,7 @@ def _ocr_pdf_pages(doc: Document, path: Path, options: ReadOptions) -> None:
     try:
         pdf = pymupdf.open(str(path))
         image_paths: list[str] = []
+        _notify(options, f"正在对 {len(needs)} 页做 OCR（可能要几十秒）…")
         for page_number in needs:
             page = pdf[page_number - 1]
             pix = page.get_pixmap(dpi=200)
@@ -126,7 +133,9 @@ def _read_collection(root: Path, options: ReadOptions) -> Document:
     for path in files:
         rel = path.relative_to(root).as_posix()
         try:
-            doc = read_document(path, options)
+            # 目录模式下页码范围对每个文件分别生效：某个文件页数不够不算错；
+            # 检索则等所有文件合并后再做，这样命中数与 front-matter 才是全目录的。
+            doc = _read_document(path, options, strict_pages=False, with_search=False)
         except XdocError as exc:
             skipped.append({"file": rel, "error": str(exc)})
             continue
@@ -144,6 +153,10 @@ def _read_collection(root: Path, options: ReadOptions) -> Document:
     if not files_meta:
         detail = "; ".join(f"{item['file']}: {item['error']}" for item in skipped)
         raise XdocError(f"目录里的文件都读不出来: {root}（{detail}）")
+    if options.pages and not sections:
+        raise XdocError(
+            f"指定的页/节范围 {options.pages!r} 在这个目录里的任何文件里都不匹配"
+        )
 
     out = Document(
         source=str(root.resolve()),
@@ -155,6 +168,8 @@ def _read_collection(root: Path, options: ReadOptions) -> Document:
             "files": files_meta,
         },
     )
+    if options.search:
+        out = apply_search(out, options.search)
     if options.outline:
         out.meta["outline"] = True
     if skipped:
@@ -163,7 +178,19 @@ def _read_collection(root: Path, options: ReadOptions) -> Document:
 
 
 def read_document(path: str | Path, options: ReadOptions | None = None) -> Document:
-    """把文件（或整个目录）读成 Document（未截断）。"""
+    """把文件（或整个目录）读成 Document（未截断）。
+
+    对外主入口：CLI 与 MCP 都走这里，保证两种入口结果一致。
+    """
+    options = options or ReadOptions()
+    if options.search and options.outline:
+        # 一个看结构、一个找内容，混在一起的结果谁也看不懂——直接说清楚。
+        raise XdocError("outline 与 search 不能同时用：一个是看结构，一个是找内容")
+    return _read_document(path, options, strict_pages=True)
+
+
+def _read_document(path: str | Path, options: ReadOptions | None, *, strict_pages: bool,
+                   with_search: bool = True) -> Document:
     options = options or ReadOptions()
     p = Path(path).expanduser()
     if not p.exists():
@@ -185,7 +212,9 @@ def read_document(path: str | Path, options: ReadOptions | None = None) -> Docum
         doc.meta["bytes"] = p.stat().st_size
         doc.meta["assets_root"] = str(assets.root)
         doc.meta["cache"] = "hit"
+        _notify(options, f"命中解析缓存: {p.name}")
     else:
+        _notify(options, f"正在解析: {p.name}（可能要十几秒）…")
         doc = convert(p, options, assets)
         doc.source = str(p.resolve())
         doc.meta.setdefault("sha256", sha)
@@ -198,11 +227,14 @@ def read_document(path: str | Path, options: ReadOptions | None = None) -> Docum
         doc.meta["cache"] = "miss"
         if options.use_cache:
             cache_store(root, key, doc)
+        _notify(options, f"解析完成: {len(doc.sections)} 节 / {doc.chars} 字符")
 
     # 页码筛选放在缓存之后：缓存里存的是未筛选的全文，切页不用重新解析
     if options.pages:
-        filter_pages(doc, options.pages)
-    if options.outline:
+        filter_pages(doc, options.pages, strict=strict_pages)
+    if options.search and with_search:
+        doc = apply_search(doc, options.search)
+    elif options.outline:
         doc = build_outline(doc)
     return doc
 

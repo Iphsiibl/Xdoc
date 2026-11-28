@@ -21,8 +21,8 @@ anymd 不进生产，只当**对照基线**（同一批样本跑同一套指标�
 ## 1. 契约（唯一入口 / 唯一出口）
 
 **入口**
-- MCP：`read` —— 单个工具，参数化选择格式与引擎。
-- CLI：`xdoc read <path> --format markdown`（非 MCP 场景同一实现）。
+- MCP：`read` —— 单个工具，参数化选择格式与引擎。（决策记录见 [`adr/0001`](adr/0001-mcp-single-tool-read.md)）
+- CLI：`xdoc read <path> --format markdown`（非 MCP 场景同一实现）；检索另有 `xdoc grep` 子命令，共享同一读取入口。
 
 **出口**（用户 m00048：内容与原输入几乎完全一样，格式可选）
 - `format`：`markdown`（默认，保结构）/ `text`（纯文本）/ `json`（结构化，供程序消费）。
@@ -160,3 +160,50 @@ MCP SDK 的一个坑：工具异常到 `CallToolResult(is_error=True)` 的转换
 
 一个没动的地方：`api.read()` 只被测试和探针调用，CLI/MCP 走的都是 `read_with_meta`——
 但它是文档里承诺的对外主入口，删了会破坏库使用者的导入路径，所以保留。
+
+## 9. 检索轮（2026-11-28，Agent 侧的「找得到」）
+
+目标：让人和 Agent 在**长文档里找东西**这件事上不再靠全文硬读。
+两轮审计（Agent 侧走 MCP/技能路径，人侧走 CLI 真实命令）给出的结论一致：
+问题不是「功能少」，而是**没反馈 + 静默失败 + 只能整篇读**。
+
+### 修掉的三个真 bug（都是「静默」或「崩」）
+
+| 问题（实测） | 修法 | 结果 |
+|---|---|---|
+| `xdoc --help` 在非中文 Windows 上直接崩：`UnicodeEncodeError: 'charmap' codec can't encode character '\u628a'` | `_setup_console()` 提到 `parse_args()` **之前**（`serve` 子命令除外，它走 stdio 不碰标准流） | exit 0，不再崩 |
+| `--pages 999` 越界：exit 0、输出 front-matter 后什么都没有 | 页码解析统一走 `parse_page_spec()`，越界/格式错/顺序反了都抛 `XdocError` | exit 2 + 「指定的范围 '999' 超出文档范围（文档共 64 节，可用 1-64）」 |
+| `xdoc plugin add 不存在的插件`：英文 argparse 报错 + 中文乱码 | 去掉 `choices=sorted(PLUGINS)`，让 `plugins.py` 里写好的中文提示可达 | exit 2 + 「未知插件: nosuch（可用: ocr, asr, asr-zh, media）」 |
+
+### 检索（grep）
+
+- `src/xdoc/search.py`：`find_matches()` 定位、`apply_search()` 把命中处拼成一份新文档。
+  命中以节为单位聚合，锚点不变（`<!-- page 24 -->`），块上带 `meta.line`（该节第几行）与
+  `meta.match`（命中原文）；front-matter 里的 `search:` 给出**命中总数**与本次返回条数。
+- 行号语义：**块文本按顺序拼接、块间不补空行**，所以 Markdown 里就是第 N 个非空行
+  （转换器本身就是一行一个块）。补空行反而会和真实文件行号错位。
+- MCP 侧仍是**一个工具 `read`**，检索做成它的 4 个参数：`grep` / `grep_regex` / `grep_context` / `grep_limit`；
+  CLI 侧新增 `xdoc grep` 子命令。两者共享 `api.read_document`，输出契约一致。
+- `outline` 与 `search` 互斥：一个是看结构，一个是找内容，同时用会明确报错。
+- 目录检索在**合并之后**做（否则每个文件先检索会把 meta 冲掉）；页码筛选仍按文件分别生效。
+
+### 反馈（让人愿意等）
+
+- 解析、OCR、ASR、抽帧、抽音轨、LibreOffice 转换、安装插件、下载 ffmpeg：全程有进度提示（stderr，`-q` 可关）。
+- 插件体积改成**实测值**（ocr ≈280MB / asr ≈730MB / asr-zh ≈3.2GB / media ≈210MB），
+  `plugin list` 与 `doctor` 额外显示**磁盘实际占用**。
+- ffmpeg 插件装完只留 `ffmpeg.exe` + `ffprobe.exe`，删掉解压出来的整棵冗余树（省约 330MB）。
+- `xdoc doctor` 从「体检报告」改成「修复指南」：缺什么给什么命令（含 `xdoc plugin add media`、
+  `uv tool install --force xdoc-tools`），并检查 `xdoc` 命令本身在不在 PATH。
+
+### 文档纠错（输出契约漂移）
+
+审计出 4 条中危漂移（HTML 锚点是 `section:N` 不是 `doc:0`；JSON 里音视频 anchor 是 `time:00:00:00`；
+视频关键帧是「总共最多 12 帧」不是「每 12 秒一帧」；OCR `avg_score` 只有图片 OCR 有），
+加 15 条低危（`--pages` 对 Excel 是「第 N 个表格块」、EPUB 锚点 `chapter:N`、`asr_model` 默认 None、
+识别看内容不看扩展名、front-matter 只对 markdown 生效等），全部同步到 README / USER_GUIDE / SKILL。
+
+### 还没做
+
+- `xdoc setup`（一键装依赖 + 配好 MCP）、`xdoc demo`（自带样例，不依赖 samples/）。
+- `ReadOptions.asr_language` 有类型了但还没暴露到 CLI/MCP（属加法，单独一轮）。

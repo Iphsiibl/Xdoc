@@ -14,7 +14,7 @@ from pydantic import Field
 
 from .api import read_with_meta
 from .errors import XdocError
-from .options import ReadOptions
+from .options import ReadOptions, SearchSpec
 
 TOOL_DESCRIPTION = """\
 把本地文件（或整个目录）转成忠实文本，供你阅读与提取信息。
@@ -29,12 +29,15 @@ TOOL_DESCRIPTION = """\
 怎么用（省 token 的推荐顺序）：
 1. 先 read(path, outline=true) 看清结构（只要标题和锚点，不给正文）；
 2. 再 read(path, pages="7-9") 或读某个具体范围，把正文取回来；
-3. 内容太长会被截断并返回 next_cursor，用 cursor 参数续读。
+3. 内容太长会被截断并返回 next_cursor，用 cursor 参数续读；
+4. 知道要找什么词时，直接 read(path, grep="关键词")：只返回命中的位置和原文片段
+   （带锚点），比读全文省得多；grep_regex=true 时按正则匹配，grep_context=1 带上前后各一行。
 
 默认只给 30000 token（足够读几十页）；确实要全文时传 max_tokens=0 表示不限。
 
 path 也可以是目录：会把目录里所有能读的文件合成一份，锚点形如
 <!-- file:report.pdf page 3 -->，front-matter 的 files 字段列出每个文件。
+对目录用 grep 会在所有能读的文件里一起检索，结果里标明命中来自哪个文件。
 
 OCR / 语音转写 / 视频抽帧需要本地插件（ocr、asr、asr-zh、media）；未安装时会明确报出安装命令。
 """
@@ -120,6 +123,22 @@ def build_server():
             bool,
             Field(description="是否带元数据头（source/kind/sections/chars 等），默认带"),
         ] = True,
+        grep: Annotated[
+            str | None,
+            Field(description="只返回含这个词的位置与原文片段（带锚点）；省略表示读全文"),
+        ] = None,
+        grep_regex: Annotated[
+            bool,
+            Field(description="grep 按正则表达式匹配（默认按字面匹配）"),
+        ] = False,
+        grep_context: Annotated[
+            int,
+            Field(ge=0, description="命中行前后各带几行上下文（默认 0，只给命中行）"),
+        ] = 0,
+        grep_limit: Annotated[
+            int,
+            Field(ge=1, description="最多返回多少条命中（默认 50）"),
+        ] = 50,
     ) -> str:
         """读取并转换一个文件（或目录）。path 支持本地路径。"""
         options = ReadOptions(
@@ -134,6 +153,16 @@ def build_server():
             images=images,
             front_matter=front_matter,
             outline=outline,
+            search=(
+                SearchSpec(
+                    pattern=grep,
+                    regex=grep_regex,
+                    context=grep_context,
+                    limit=grep_limit,
+                )
+                if grep
+                else None
+            ),
         )
         try:
             text, _doc = read_with_meta(path, options)
