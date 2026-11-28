@@ -6,6 +6,7 @@ from conftest import require, sample
 
 from xdoc.api import read_document
 from xdoc.options import ReadOptions
+from xdoc.render import render
 
 
 def kinds_of(doc):
@@ -74,6 +75,16 @@ def test_csv_becomes_table(tmp_path):
     assert tables
     assert tables[0].rows[0] == ["name", "value"]
     assert tables[0].rows[-1] == ["bar", "2"]
+
+
+def test_markdown_code_block_keeps_language(tmp_path):
+    """```python 的语言标注要留住，否则转出来的代码块退化成裸 ```。"""
+    path = tmp_path / "code.md"
+    path.write_text("# 标题\n\n```python\nprint(1)\n```\n", encoding="utf-8")
+    doc = read_document(path, ReadOptions())
+    code = [b for s in doc.sections for b in s.blocks if b.kind == "code"]
+    assert code and code[0].lang == "python"
+    assert "```python" in render(doc, "markdown")
 
 
 def test_pdf_table_cells_have_no_newlines():

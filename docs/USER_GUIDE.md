@@ -256,6 +256,8 @@ assets_root: C:\Users\me\.local\share\xdoc\assets
 
 `kind` 常见取值：`heading` / `text` / `list_item` / `table` / `image` / `quote` / `code` / `note`。
 
+`kind: "code"` 的块如果源文件里写了语言标注（Markdown 的 ` ```python `），会多一个 `"lang": "python"` 字段。
+
 ### 3.4 截断与续读（长文档必读）
 
 给 `max_tokens` 后，xdoc 会**截断而不是硬塞**，并在 front-matter 给出续读游标：

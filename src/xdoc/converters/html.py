@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from ..assets import AssetStore
@@ -40,7 +39,6 @@ def convert(path: Path, options: ReadOptions, assets: AssetStore) -> Document:
     current = Section(label=title or "document", anchor="section:0")
     sections.append(current)
 
-    heading_re = re.compile(r"^#{1,6}\s+(.*)$")
     for node in body.find_all(["h1", "h2", "h3", "p", "ul", "ol", "pre", "table", "blockquote"], recursive=True):
         if node.name in ("h1", "h2", "h3"):
             text = node.get_text(" ", strip=True)

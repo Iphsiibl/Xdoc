@@ -6,7 +6,6 @@ CLI 与 MCP 共用同一套实现，输出结果一致。
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
@@ -114,9 +113,6 @@ def _cmd_plugin(args) -> int:
     manager = PluginManager()
     if args.plugin_command == "list":
         items = manager.list()
-        if args.json:
-            print(json.dumps(items, ensure_ascii=False, indent=2))
-            return 0
         print("插件状态:")
         for item in items:
             mark = "已安装" if item["installed"] else "未安装"
@@ -205,10 +201,6 @@ def _setup_console() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-
-    # --json 是 plugin list 的可选输出
-    if args.command == "plugin" and args.plugin_command == "list":
-        args.json = False
 
     if args.command != "serve":
         _setup_console()

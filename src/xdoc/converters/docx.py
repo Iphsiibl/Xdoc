@@ -73,7 +73,6 @@ def _extract_images(paragraph, doc, assets: AssetStore, index: int) -> list[Bloc
 def convert(path: Path, options: ReadOptions, assets: AssetStore) -> Document:
     try:
         import docx
-        from docx.oxml.ns import qn
         from docx.table import Table
         from docx.text.paragraph import Paragraph
     except ImportError as exc:  # pragma: no cover

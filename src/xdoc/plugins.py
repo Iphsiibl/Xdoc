@@ -247,10 +247,12 @@ class PluginManager:
         if not self.is_installed(name):
             raise PluginError(f"插件 {name} 未安装，先执行: xdoc plugin add {name}")
         python = self.venv_python(name)
+        if not spec.worker:
+            raise PluginError(f"插件 {name} 不是 worker 型插件，无法直接调用")
         # 优先用包里的 worker（永远是最新版本），插件目录里的副本只作备份
-        worker = WORKERS_DIR / (spec.worker or "")
+        worker = WORKERS_DIR / spec.worker
         if not worker.exists():
-            worker = self.plugin_dir(name) / (spec.worker or "")
+            worker = self.plugin_dir(name) / spec.worker
         if not worker.exists():
             raise PluginError(f"插件 {name} 的 worker 缺失: {worker}")
 

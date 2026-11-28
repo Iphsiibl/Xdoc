@@ -30,7 +30,7 @@ SAMPLES = ROOT / "samples"
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "tools"))
 
-from compare import REF, recall, token_recall  # noqa: E402
+from ruler import REF, recall, token_recall  # noqa: E402
 from xdoc.api import read_with_meta  # noqa: E402
 from xdoc.options import ReadOptions  # noqa: E402
 
@@ -69,12 +69,7 @@ ASR_TRUTH = {
 }
 
 # ---------------------------------------------------------------- 基础工具
-WS = re.compile(r"\s+")
 CJK = re.compile(r"[\u4e00-\u9fff]")
-
-
-def norm(text: str) -> str:
-    return WS.sub(" ", text).strip()
 
 
 def levenshtein(a: list[str], b: list[str]) -> int:
@@ -475,7 +470,6 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--quick", action="store_true")
-    ap.add_argument("--out", default="docs/ACCEPTANCE.md")
     args = ap.parse_args()
 
     payload: dict = {"runs": args.runs, "quick": args.quick}
@@ -495,12 +489,11 @@ def main() -> int:
     payload["mcp"] = check_mcp_surface()
     payload["budget"] = check_budget_continuation()
 
-    out = ROOT / args.out
-    out.parent.mkdir(parents=True, exist_ok=True)
     (ROOT / "docs" / "acceptance_results.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2)[:4000])
-    print(f"\n原始数据: docs/acceptance_results.json")
+    print("\n原始数据: docs/acceptance_results.json")
+    print("报告: uv run python tools/report.py")
     return 0
 
 

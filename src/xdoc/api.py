@@ -7,7 +7,6 @@ CLI 与 MCP 都调这里，保证两种入口结果一致。
 from __future__ import annotations
 
 import hashlib
-import subprocess
 import tempfile
 from pathlib import Path
 
@@ -31,7 +30,7 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _ocr_pdf_pages(doc: Document, path: Path, options: ReadOptions, assets: AssetStore) -> None:
+def _ocr_pdf_pages(doc: Document, path: Path, options: ReadOptions) -> None:
     """给没有文本层的 PDF 页补 OCR 文字。"""
     manager = PluginManager(Path(options.plugin_dir) if options.plugin_dir else None)
     if not manager.is_installed("ocr"):
@@ -194,7 +193,7 @@ def read_document(path: str | Path, options: ReadOptions | None = None) -> Docum
         doc.meta.setdefault("assets_root", str(assets.root))
 
         if doc.kind == "pdf" and doc.meta.get("needs_ocr") and options.ocr != "off":
-            _ocr_pdf_pages(doc, p, options, assets)
+            _ocr_pdf_pages(doc, p, options)
 
         doc.meta["cache"] = "miss"
         if options.use_cache:

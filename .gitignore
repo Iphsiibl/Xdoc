@@ -12,9 +12,8 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
-# 可再生成的样本与对比产物（用 tools/fetch_samples.py、tools/compare.py 重建）
+# 可再生成的样本（用 tools/fetch_samples.py 重建）
 samples/
-compare/
 
 # 本地配置
 .env

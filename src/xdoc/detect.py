@@ -45,7 +45,7 @@ EXT_KINDS = {
     ".m4a": "audio",
     ".flac": "audio",
     ".aac": "audio",
-    ".ogg": "opus",
+    ".ogg": "audio",
     ".opus": "audio",
     ".mp4": "video",
     ".mov": "video",
@@ -54,10 +54,6 @@ EXT_KINDS = {
     ".webm": "video",
     ".m4v": "video",
 }
-
-IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
-AUDIO_EXT = {".wav", ".mp3", ".m4a", ".flac", ".aac", ".ogg", ".opus"}
-VIDEO_EXT = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 
 
 def _zip_kind(path: Path) -> str | None:
@@ -133,12 +129,3 @@ def detect_kind(path: str | Path) -> str:
     else:
         return "text"
     return "unknown"
-
-
-def is_kind(kind: str, group: str) -> bool:
-    return {
-        "image": kind == "image",
-        "audio": kind in ("audio", "opus"),
-        "video": kind == "video",
-        "office": kind in ("docx", "pptx", "xlsx", "doc_legacy", "ppt_legacy", "xls_legacy"),
-    }[group]

@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import hashlib
-import shutil
 from pathlib import Path
 
 
@@ -46,18 +45,3 @@ class AssetStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
         return self._rel(f"{self._rel_dir}/{filename}")
-
-    def save_file(self, src: Path, filename: str | None = None) -> str | None:
-        if not self.enabled:
-            return None
-        name = filename or src.name
-        return self.save(src.read_bytes(), name)
-
-    def copy_dir(self, src: Path) -> str | None:
-        if not self.enabled:
-            return None
-        dest = self.root / self._rel_dir / src.name
-        if dest.exists():
-            shutil.rmtree(dest)
-        shutil.copytree(src, dest)
-        return self._rel(f"{self._rel_dir}/{src.name}")

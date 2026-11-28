@@ -47,9 +47,9 @@ def test_project_metadata_is_publishable():
     assert (ROOT / "LICENSE").exists()
     assert PROJECT["requires-python"] == ">=3.11"
     assert PROJECT["readme"] == "README.md"
-    # sdist 里不该塞可再生成的样本与对比产物
+    # sdist 里不该塞可再生成的样本
     exclude = META["tool"]["hatch"]["build"]["targets"]["sdist"]["exclude"]
-    assert "/samples" in exclude and "/compare" in exclude
+    assert "/samples" in exclude
 
 
 def test_wheel_includes_worker_code():

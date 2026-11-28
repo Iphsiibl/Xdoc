@@ -39,11 +39,16 @@ def convert_markdown(path: Path, options: ReadOptions, assets: AssetStore) -> Do
     section = Section(label="markdown", anchor="doc:0")
     in_code = False
     code_lines: list[str] = []
+    code_lang: str | None = None
     for line in text.splitlines():
         if line.strip().startswith("```"):
             if in_code:
-                section.add(Block(kind="code", text="\n".join(code_lines)))
+                section.add(Block(kind="code", text="\n".join(code_lines), lang=code_lang))
                 code_lines = []
+                code_lang = None
+            else:
+                info = line.strip()[3:].strip()
+                code_lang = info.split()[0] if info else None
             in_code = not in_code
             continue
         if in_code:
@@ -63,7 +68,7 @@ def convert_markdown(path: Path, options: ReadOptions, assets: AssetStore) -> Do
             continue
         section.add(Block(kind="text", text=line))
     if code_lines:
-        section.add(Block(kind="code", text="\n".join(code_lines)))
+        section.add(Block(kind="code", text="\n".join(code_lines), lang=code_lang))
 
     meta = {"engine": "builtin", "headings": sum(1 for b in section.blocks if b.kind == "heading")}
     return Document(source=str(path), kind="markdown", sections=[section], meta=meta)

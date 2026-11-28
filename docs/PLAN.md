@@ -49,7 +49,7 @@ anymd 不进生产，只当**对照基线**（同一批样本跑同一套指标�
 - **P1 骨架**：项目结构、统一 `Document → Sections` 中间表示、markdown/text/json 三种渲染、
   单工具 MCP、CLI、`read` 跑通 Tier 1 全部格式。
 - **P2 质量门**：对照样本做忠实度指标（文本型 PDF 提取完整率、DOCX/PPTX/XLSX 结构保真、
-  数字/日期原样率），产出 `docs/BASELINE.md`。
+  数字/日期原样率），产出 `docs/ACCEPTANCE.md`。
 - **P3 插件层**：OCR / ASR / media 插件与下载卸载。
 - **P4 收敛**：与 anymd 同指标对比；`uv tool install xdoc-tools` 一条命令装；发 PyPI。
 
@@ -120,3 +120,43 @@ CLI 与 MCP 共用 `api.read_document`，输出一致。
 MCP SDK 的一个坑：工具异常到 `CallToolResult(is_error=True)` 的转换发生在**协议层**
 （`mcp/server/mcpserver/server.py:437-456`），直接调 `server.call_tool()` 只会抛异常——
 所以错误语义的测试必须走真实客户端（内存传输即可），否则测不到 Agent 真正看到的东西。
+
+## 8. 减法轮（2026-11-28，清理不需要的文件与代码）
+
+目标：把仓库里「没人要」的东西清掉，让人（读文档、改代码）和 Agent（读仓库、跑工具）
+看到的都是有效信息。判定用 **deletion test**：删掉之后复杂度是消失了，还是只是搬到了别处。
+
+### 删掉的文件
+
+- `tools/` 下 6 个一次性探针（`grid_probe` / `grid_regions` / `grid_signal_probe` /
+  `layout_probe` / `table_dump` / `tables_mode_probe`）：全仓只在各自 docstring 的「用法：」行出现，
+  零引用；它们的结论早已固化进 `src/xdoc/converters/pdf.py` 顶部注释。
+- `tools/compare.py` → 拆成 **`tools/ruler.py`**（只留「尺子」：参考文本抽取 + `recall` / `token_recall`）。
+  它的 CLI 那半（`run_xdoc` / `run_anymd` / `main`，写 `compare/` 产物）与 `tools/acceptance.py`
+  里的同名函数完全重复，而 `compare/` 产物无人读取 → 连目录一起删。
+- 本地产物：`dist/`（过期 0.1.0 构建，pyproject 已是 0.1.1）、`compare/`、`__pycache__/`、`.pytest_cache/`。
+
+### 删掉的死代码
+
+| 位置 | 符号 | 原因 |
+|---|---|---|
+| `src/xdoc/detect.py` | `IMAGE_EXT` / `AUDIO_EXT` / `VIDEO_EXT`、`is_kind()` | 零引用 |
+| `src/xdoc/assets.py` | `AssetStore.save_file()` / `copy_dir()` | 零引用（连带 `import shutil`） |
+| `src/xdoc/cli.py` | `import json` + `plugin list --json` 分支 | parser 从未注册 `--json`，`main()` 还把它恒置 `False`，分支不可达 |
+| `src/xdoc/api.py` | `import subprocess`、`_ocr_pdf_pages()` 的 `assets` 形参 | 未使用 |
+| `src/xdoc/converters/` | `epub.py` 的 `import re`、`legacy.py` 的 `import os`、`docx.py` 重复的 `qn` 导入、`html.py` 的 `heading_re` | 未使用 |
+| `tools/acceptance.py` | `WS` + 自己的 `norm()` | `norm` 零调用（对比用的是 `ruler.norm`） |
+
+### 顺带修掉的真问题
+
+- `.ogg` 之前映射到并不存在的 kind `opus`（`_handlers()` 里没有这个键），非标准 ogg 会报
+  「暂不支持的文件类型: opus」→ 改为 `audio`。
+- `PluginManager.run_worker()` 对没有 worker 的插件（如 `media`）会把 worker 路径算成目录本身，
+  报错难懂 → 改为明确提示「插件 X 不是 worker 型插件」。
+- `ReadOptions.extra`（一个没人写入的 `dict[str, Any]`）→ 换成有类型的 `asr_language: str | None`，
+  媒体转换器直接把它传给 faster-whisper。
+- `Block.lang` 之前永远是 `None`（没有任何转换器写它）→ Markdown 转换器现在会读出 ``` 后的语言标注
+  （` ```python ` 不再退化成 ` ``` `），字段不再是空壳。
+
+一个没动的地方：`api.read()` 只被测试和探针调用，CLI/MCP 走的都是 `read_with_meta`——
+但它是文档里承诺的对外主入口，删了会破坏库使用者的导入路径，所以保留。

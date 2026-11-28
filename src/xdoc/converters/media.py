@@ -85,7 +85,7 @@ def _run_asr(manager: PluginManager, plugin: str, backend: str, audio: Path,
     payload = {
         "audio": str(audio),
         "model": options.asr_model or "small",
-        "language": options.extra.get("asr_language"),
+        "language": options.asr_language,
         "backend": backend,
     }
     result = manager.run_worker(plugin, payload)

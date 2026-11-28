@@ -49,6 +49,13 @@ def test_detect_office_by_zip_layout(tmp_path):
     assert detect_kind(xlsx) == "xlsx"
 
 
+def test_detect_ogg_falls_back_to_audio(tmp_path):
+    """.ogg 之前被映射到不存在的 kind "opus"，非标准 ogg 会直接报"不支持的文件类型"。"""
+    ogg = tmp_path / "h.ogg"
+    ogg.write_bytes(b"\x00\x01\x02oggdata")
+    assert detect_kind(ogg) == "audio"
+
+
 def test_detect_real_samples():
     cases = {
         sample("docx", "calibre_demo.docx"): "docx",

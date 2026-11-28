@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import base64
 import binascii
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 from .errors import XdocError
 from .ir import Block, Document, Section
@@ -27,13 +26,13 @@ class ReadOptions:
     tables: str = "auto"            # auto（版面像表格才识别，快）| on（每页都识别，慢）| off
     asr: str = "auto"               # auto | on | off
     asr_model: str | None = None    # 如 small / base / large-v3
+    asr_language: str | None = None   # 语音识别语言（如 zh / en）；None = 自动识别
     images: str = "refs"            # refs | none
     front_matter: bool = True
     assets_dir: str | None = None
     plugin_dir: str | None = None
     outline: bool = False           # True = 只给结构（标题+锚点），不给正文
     use_cache: bool = True          # False = 跳过解析缓存，强制重新解析
-    extra: dict[str, Any] = field(default_factory=dict)
 
 
 def estimate_tokens(text: str) -> int:

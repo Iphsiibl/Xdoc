@@ -42,11 +42,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/xdoc"]
 
-# sdist 里不放可再生成的样本与对比产物，否则包体会大到没必要
+# sdist 里不放可再生成的样本，否则包体会大到没必要
 [tool.hatch.build.targets.sdist]
 exclude = [
     "/samples",
-    "/compare",
     "/.venv",
     "/.pytest_cache",
     "/docs/acceptance_results.json",
