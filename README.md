@@ -7,6 +7,15 @@
 - **只转换，不摘要**：金额、日期、编号原样保留；PDF 按页、PPT 按幻灯片、Excel 按工作表、音视频按时间戳给出锚点，便于精确引用。
 - **运行期全离线**：不调用任何云服务；OCR / ASR / ffmpeg 均为本地可选插件。
 
+## 架构
+
+一份内核，两个入口，一个出口 → [架构图（HTML，浏览器直接打开）](docs/diagrams/xdoc-architecture.html)
+
+- **入口**：MCP 工具 `read` 与同源 CLI `xdoc read` 都走 `api.read_document`。
+- **内核**：`detect` 判类型 → `converters/*` 忠实解析 → 中间表示 `Document / Section / Block`。
+- **出口**：`max_tokens` 预算切分 + `cursor` 续读，渲染成 Markdown / 纯文本 / JSON。
+- **可选插件**：OCR / ASR / ffmpeg 跑在隔离 venv 里；图片与抽帧落到资产目录。
+
 ## 安装
 
 ```bash
