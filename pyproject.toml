@@ -1,5 +1,5 @@
 [project]
-name = "xdoc"
+name = "xdoc-tools"
 version = "0.1.0"
 description = "让 Agent 读懂任意文档：本地、离线、忠实的文档转文本层（MCP + CLI）"
 readme = "README.md"

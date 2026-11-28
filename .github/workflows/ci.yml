@@ -30,7 +30,7 @@ jobs:
         run: uv sync --extra dev
 
       - name: 跑测试
-        run: uv run pytest
+        run: uv run --extra dev pytest
 
       - name: CLI 冒烟（读一个自造的 docx）
         run: uv run python tools/smoke_cli.py

@@ -10,7 +10,7 @@
 ## 0. 30 秒上手
 
 ```bash
-uv tool install xdoc        # 装一次
+uv tool install xdoc-tools    # 装一次
 xdoc doctor                 # 自检：应打印「核心依赖齐全，基础能力可用。」
 xdoc read report.pdf        # 读一个 PDF，输出 Markdown
 ```
@@ -25,8 +25,8 @@ xdoc read report.pdf        # 读一个 PDF，输出 Markdown
 
 | 场景 | 命令 | 说明 |
 | --- | --- | --- |
-| 长期用（推荐） | `uv tool install xdoc` | 装到 `~/.local/bin/xdoc.exe`（Windows）/ `~/.local/bin/xdoc` |
-| 临时用一次 | `uvx xdoc read file.pdf` | 不想安装，uv 会临时拉起 |
+| 长期用（推荐） | `uv tool install xdoc-tools` | 装到 `~/.local/bin/xdoc.exe`（Windows）/ `~/.local/bin/xdoc` |
+| 临时用一次 | `uvx xdoc-tools read file.pdf` | 不想安装，uv 会临时拉起 |
 | 从源码（开发者） | 仓库根目录执行 `uv sync` 后 `uv run xdoc …`；或 `uv tool install --force .` | `uv tool install --force .` 会覆盖已装的 xdoc |
 
 > `uv` 没有的话：`pip install uv`，或从 <https://docs.astral.sh/uv/getting-started/installation/> 取对应平台的安装命令。
@@ -538,7 +538,7 @@ uv run python tools/acceptance.py --runs 3   # 跑完整验收 → docs/acceptan
 uv run python tools/report.py                # → docs/ACCEPTANCE.md
 uv run python tools/comparison.py            # → docs/COMPARISON.md
 uv run python tools/release_check.py         # 发布自检（隔离环境安装 + doctor 绿）
-uv run pytest                                # 单元测试
+uv run --extra dev pytest                    # 单元测试
 ```
 
 - 架构说明与图：[`docs/diagrams/xdoc-architecture.html`](diagrams/xdoc-architecture.html)

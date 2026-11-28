@@ -51,7 +51,7 @@ anymd 不进生产，只当**对照基线**（同一批样本跑同一套指标�
 - **P2 质量门**：对照样本做忠实度指标（文本型 PDF 提取完整率、DOCX/PPTX/XLSX 结构保真、
   数字/日期原样率），产出 `docs/BASELINE.md`。
 - **P3 插件层**：OCR / ASR / media 插件与下载卸载。
-- **P4 收敛**：与 anymd 同指标对比；`uv tool install xdoc` 一条命令装；发 PyPI。
+- **P4 收敛**：与 anymd 同指标对比；`uv tool install xdoc-tools` 一条命令装；发 PyPI。
 
 ## 4. 验收标准（用户 m00048 的质量诉求，落成可测指标）
 

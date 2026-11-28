@@ -1,10 +1,27 @@
 # xdoc 0.1.0 发布记录
 
-日期：2026-11-27
-包名：`xdoc`（PyPI，MIT）
+日期：2026-11-28（发布日）
+包名：`xdoc-tools`（PyPI，MIT）—— 命令仍是 `xdoc`
 一句话：把 PDF / 图片 / 音频 / 视频 / Office / 富文本忠实转成文本，让 Agent 直接读；本地、离线、单 MCP 工具。
 
+> **为什么叫 `xdoc-tools`**：PyPI 拒绝 `xdoc` 这个名字（`The name 'xdoc' isn't allowed`）——
+> 它与已存在的 `xdocx` / `xdocs` 太相似，触发防抢注规则。`xdoc-tools`（PyPI 上显示为 XdocTools）
+> 可用；**安装后的命令不变，仍是 `xdoc`**。
+
 ---
+
+## 已发布记录（2026-11-28）
+
+| 项 | 值 |
+| --- | --- |
+| 包名 | `xdoc-tools`（PyPI 上显示为 XdocTools） |
+| 版本 | 0.1.0 |
+| 项目页 | <https://pypi.org/project/xdoc-tools/> |
+| 安装 | `uv tool install xdoc-tools`（装完命令仍是 `xdoc`） |
+| wheel | `xdoc_tools-0.1.0-py3-none-any.whl`（55039 B，sha256 `05e455d928188b9c3962a925c969feee873bd6d6d6a86e54cf471d0678b20525`） |
+| sdist | `xdoc_tools-0.1.0.tar.gz`（197193 B，sha256 `9add9e884d8e4cebdea949b6e3f7f9dda564ab5678abeba1e66a13e5c7c510db`） |
+| 发布方式 | 本机 API token（`uv publish`）；PyPI 侧已登记 pending publisher（GitHub / `Iphsiibl/Xdoc` / `publish.yml`），之后的版本可走 CI 的 OIDC |
+| 发布后复验 | `uv run python tools/release_check.py --from-index` → 干净环境从 PyPI 安装、`--version`、`doctor` 绿、真读 docx、`plugin list`、README 命令一致，**全 PASS** |
 
 ## 1. 发布前自检（`tools/release_check.py`）
 
@@ -20,7 +37,7 @@
 | 6 | `xdoc doctor` 绿 | PASS — 核心依赖段无 `[缺失]`，结尾「核心依赖齐全，基础能力可用。」，退出码 0 |
 | 7 | 真读文件 | PASS — 自造 docx 被读出并命中正文标记 |
 | 8 | `xdoc plugin list` | PASS — 干净机器上正确显示 4 个插件均未安装 |
-| 9 | README 安装命令 | PASS — README 主命令为 `uv tool install xdoc`，与包名一致 |
+| 9 | README 安装命令 | PASS — README 主命令为 `uv tool install xdoc-tools`，与包名一致 |
 
 复现：
 
@@ -60,17 +77,23 @@ Publish 唯一的失败点是最后一步的 OIDC 取 token：GitHub Actions 侧
 
 ### 3.2 两条上传路径，任选一条
 
+> **0.1.0 已走路径 B 完成发布**（本机 token）。下面的 A/B 说明保留给后续版本。
+
 ### A. CI 自动发布（推荐，无需在本机保存密钥）
 
 仓库已带 `.github/workflows/publish.yml`：推送 `v*` 标签或手动触发 → 跑测试 → 跑发布前自检 →
 `uv publish --trusted-publishing always`（PyPI OIDC，仓库里不存任何 token）。
 
-一次性配置（在 https://pypi.org/manage/project/xdoc/settings/publishing/ 添加 Trusted Publisher）：
+一次性配置（在 https://pypi.org/manage/project/xdoc-tools/settings/publishing/ 添加 Trusted Publisher）：
 
 - Provider：`GitHub`
 - Repository：`Iphsiibl/Xdoc`
 - Workflow name：`publish.yml`
 - Environment name：`pypi`
+
+> 该项目在 PyPI 上已登记为 **Pending publisher: XdocTools**（Repository `Iphsiibl/Xdoc`、
+> Workflow `publish.yml`、Environment `(Any)`）。项目一旦存在，这个 pending publisher 会自动生效，
+> 之后推 `v*` 标签即可由 CI 用 OIDC 发布，仓库里不存任何 token。
 
 然后 `git tag v0.1.0 && git push origin v0.1.0` 即可。
 
@@ -88,7 +111,7 @@ uv publish --username <你的用户名>
 ```
 
 token 申请：https://pypi.org/manage/account/token/ （scope 勾 `pypi` 上传）。
-若同名 `xdoc` 已被占用（当前未被占用），改版本号或换名。
+若同名 `xdoc-tools` 也被占用，改版本号或换名。
 
 上传后按 done 标准复验：
 

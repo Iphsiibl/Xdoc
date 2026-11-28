@@ -21,8 +21,8 @@
 ## 安装
 
 ```bash
-uv tool install xdoc          # 推荐：装一次，之后直接用 xdoc
-uvx xdoc read file.pdf        # 不想安装、临时用一次
+uv tool install xdoc-tools    # 推荐：装一次，之后直接用 xdoc
+uvx xdoc-tools read file.pdf  # 不想安装、临时用一次
 ```
 
 装完先自检：
@@ -137,24 +137,27 @@ sha256: ...
 复现：`uv run python tools/acceptance.py --runs 3` → `docs/acceptance_results.json`，
 `uv run python tools/report.py` → `docs/ACCEPTANCE.md`。
 
-## 发布证据（0.1.0，2026-11-27）
+## 发布证据（0.1.0，2026-11-28，已发布到 PyPI）
+
+已发布：<https://pypi.org/project/xdoc-tools/>（包名 `xdoc-tools`，安装后命令仍是 `xdoc`）
 
 `uv run python tools/release_check.py` 可重跑；下面是它的实际输出：
 
 | 检查 | 结果 |
 | --- | --- |
 | 构建 sdist + wheel | PASS（wheel 31 个条目，sdist 173KB） |
-| wheel 元数据 name/version/requires-python/license | PASS（xdoc 0.1.0 / >=3.11 / MIT） |
+| wheel 元数据 name/version/requires-python/license | PASS（xdoc-tools 0.1.0 / >=3.11 / MIT） |
 | wheel 含 worker 与转换器代码 | PASS |
 | 隔离环境安装（`HOME`/`UV_TOOL_DIR` 全指向临时目录 = 干净机器） | PASS |
 | 安装后 `--version` | PASS（xdoc 0.1.0） |
 | `xdoc doctor` 绿 | PASS（核心依赖齐全，基础能力可用） |
 | 真读一个自造 docx | PASS |
 | `xdoc plugin list` 可用 | PASS |
-| README 安装命令 = `uv tool install xdoc` | PASS |
+| README 安装命令 = `uv tool install xdoc-tools` | PASS |
 
 证据文件：`docs/release_evidence.json`；发布后用 `uv run python tools/release_check.py --from-index`
-从 PyPI 按包名再验一遍真实安装路径。详见 [`docs/RELEASE.md`](docs/RELEASE.md)。
+从 PyPI 按包名再验一遍真实安装路径（已验：干净环境从 PyPI 安装 → `--version` → `doctor` 绿 → 真读 docx → `plugin list`，全 PASS）。
+详见 [`docs/RELEASE.md`](docs/RELEASE.md)。
 
 CI 侧也已独立跑通同一套自检：GitHub Actions 的 CI 工作流在 ubuntu-latest + windows-latest 上全绿，
 Publish 工作流里的「跑测试」与「发布前自检（干净环境安装 + doctor 绿 + README 一致）」两步均通过。
@@ -182,7 +185,7 @@ Publish 工作流里的「跑测试」与「发布前自检（干净环境安装
 ```bash
 uv sync
 uv run xdoc doctor
-uv run pytest
+uv run --extra dev pytest
 ```
 
 ## 样本

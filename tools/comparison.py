@@ -72,7 +72,7 @@ def main() -> int:
     add("")
     add("1. **质量过关**：在同一批真实样本上，xdoc 的保真度全面达到 anymd，中文场景明显更好。")
     add("2. **继续走自己的路线**，但吸收 anymd 两个值得抄的点：")
-    add("   - 「一条命令装好并注册到所有 MCP 客户端」的安装体验（xdoc 计划发布到 PyPI 后用 `uv tool install xdoc`）；")
+    add("   - 「一条命令装好并注册到所有 MCP 客户端」的安装体验（xdoc 已发布到 PyPI：`uv tool install xdoc-tools`，命令仍是 `xdoc`）；")
     add("   - 页面锚点 + 续读游标的输出形态（xdoc 已实现 `<!-- page N -->` 与 `next_cursor`）。")
     add("3. **不引入 anymd 作为依赖**：它是 Rust 二进制 + 闭源 Pro 功能，且核心能力（保真度）不如自研实现。")
     add("")

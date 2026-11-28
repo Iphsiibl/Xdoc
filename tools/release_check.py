@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -126,10 +127,24 @@ def clean_install(source: str, tmp: Path) -> tuple[Path | None, dict, str]:
     return exe, env, ""
 
 
+def project_name() -> str:
+    """从 pyproject.toml 读真实包名，改名后自检脚本不会跟着过期。"""
+    try:
+        data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        return str(data["project"]["name"])
+    except Exception:
+        return "xdoc-tools"
+
+
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):  # Windows 控制台默认 GBK，中文证据要能读
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-index", action="store_true", help="从 PyPI 按包名安装，而不是用本地构建产物")
-    parser.add_argument("--name", default="xdoc", help="包名（--from-index 时用它安装）")
+    parser.add_argument("--name", default=project_name(), help="包名（默认从 pyproject.toml 读）")
     args = parser.parse_args()
 
     print(f"发布前自检 · {args.name} · {'来自 PyPI 索引' if args.from_index else '来自本地构建产物'}\n")
@@ -185,7 +200,13 @@ def main() -> int:
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         wanted = f"uv tool install {args.name}"
-        stale = [c for c in ("uv tool install --force .", "uvx xdoc") if c in readme and c != wanted]
+        # 过时命令：旧包名。README 里源码安装用的 "uv tool install --force ." 是合法的，不算过时。
+        stale = []
+        for cmd in ("uv tool install xdoc", "uvx xdoc"):
+            if cmd == wanted:
+                continue
+            if re.search(re.escape(cmd) + r"(?![\w-])", readme):
+                stale.append(cmd)
         checks.add(
             "README 安装命令与包名一致",
             wanted in readme,
