@@ -41,8 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     read_cmd.add_argument("--asr-model", default=None, help="ASR 模型名，如 small / large-v3")
     read_cmd.add_argument("--asr-language", default=None,
                           help="语音转写语言，如 zh / en（不填=自动识别）")
+    read_cmd.add_argument("--asr-punc", default="auto", choices=["auto", "on", "off"],
+                          help="中文转写要不要标点：auto（默认：自动模式快、点名引擎时准）/ on（准，慢 30 秒）/ off（快，没有标点）")
     read_cmd.add_argument("--tables", default="auto", choices=["auto", "on", "off"],
-                          help="PDF 表格识别：auto（页面有画线才识别，快）/ on（每页都按画线识别）/ off（不识别）")
+                          help="PDF 表格识别：auto（页面有竖线才识别，快）/ on（每页都按画线识别）/ off（不识别）")
     read_cmd.add_argument("--no-images", action="store_true", help="不提取内嵌图片")
     read_cmd.add_argument("--no-front-matter", action="store_true", help="不输出元数据头")
     read_cmd.add_argument("--outline", action="store_true",
@@ -70,6 +72,8 @@ def build_parser() -> argparse.ArgumentParser:
     grep_cmd.add_argument("--asr-model", default=None, help="ASR 模型名，如 small / large-v3")
     grep_cmd.add_argument("--asr-language", default=None,
                            help="语音转写语言，如 zh / en（不填=自动识别）")
+    grep_cmd.add_argument("--asr-punc", default="auto", choices=["auto", "on", "off"],
+                           help="中文转写要不要标点：auto（默认：自动模式快、点名引擎时准）/ on（准，慢 30 秒）/ off（快，没有标点）")
 
     plugin_cmd = sub.add_parser("plugin", help="可选引擎插件管理（安装/卸载/查看）")
     plugin_sub = plugin_cmd.add_subparsers(dest="plugin_command", required=True)
@@ -125,6 +129,7 @@ def _cmd_read(args) -> int:
         asr=args.asr,
         asr_model=args.asr_model,
         asr_language=args.asr_language,
+        asr_punc=args.asr_punc,
         tables=args.tables,
         images="none" if args.no_images else "refs",
         front_matter=not args.no_front_matter,
@@ -153,6 +158,7 @@ def _cmd_grep(args) -> int:
         asr=args.asr,
         asr_model=args.asr_model,
         asr_language=args.asr_language,
+        asr_punc=args.asr_punc,
         search=SearchSpec(
             pattern=args.pattern,
             regex=args.regex,
@@ -282,6 +288,15 @@ def _cmd_doctor() -> int:
     count, size = usage(cache_root())
     print(f"\n解析缓存: {cache_root()}")
     print(f"  条目数: {count}    占用: {size / 1024 / 1024:.1f} MB（xdoc cache clear 可清空）")
+    print("  分两层存：基础解析（跟插件无关）+ OCR/转写增强；装了新插件只重算增强层")
+
+    print("\n终端编码:")
+    encoding = (getattr(sys.stdout, "encoding", "") or "").lower()
+    if encoding in ("utf-8", "utf8"):
+        print("  [ok]   UTF-8，中文能正常显示")
+    else:
+        print(f"  [注意] 当前终端编码是 {encoding or '未知'}，中文可能显示成乱码")
+        print("         换个 UTF-8 终端，或在 Windows 上先执行 chcp 65001")
 
     if missing:
         print(f"\n核心依赖缺失: {', '.join(missing)}")

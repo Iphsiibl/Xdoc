@@ -13,7 +13,7 @@ reject binary input, and images of pages are unreadable without OCR. Always go t
 ```
 read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline=False,
      grep=None, grep_regex=False, grep_context=0, grep_limit=50,
-     ocr="auto", asr="auto", asr_model=None, asr_language=None,
+     ocr="auto", asr="auto", asr_model=None, asr_language=None, asr_punc="auto",
      tables="auto", images="refs", front_matter=True)
 ```
 
@@ -36,9 +36,12 @@ read(path, format="markdown", max_tokens=30000, cursor=None, pages=None, outline
   Long spreadsheets come back in row-sliced chunks with the header repeated.
 - `ocr` / `asr`: `auto` (default) uses the locally installed plugins; `off` disables them.
   `asr_language` pins the transcription language (`zh` / `en`); leave it unset to let the engine
-  detect it.
+  detect it. `asr_punc` decides whether the Chinese engine loads its punctuation model:
+  `auto` (default) is fast for auto mode, accurate when a specific engine is named; `on` adds
+  punctuation (~30s more), `off` skips it (~30s less, same characters).
 - `front_matter`: keep `true` — it carries the source path, page/slide/sheet counts, sha256,
-  the cache hit/miss flag and the continuation cursor.
+  the cache hit/miss flag, the continuation cursor and a `toc:` list of the document's sections.
+  Scan that `toc` first: it tells you which pages to pull instead of reading everything.
 
 Errors come back as tool errors (`isError: true`) with the reason in the text (e.g. "文件不存在: …",
 "无效的 cursor: …", "指定的范围 '999' 超出文档范围（文档共 64 节，可用 1-64）"). Fix the path or

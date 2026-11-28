@@ -115,9 +115,13 @@ def build_server():
             str | None,
             Field(description="语音转写语言，如 zh / en；省略则自动识别"),
         ] = None,
+        asr_punc: Annotated[
+            Literal["auto", "on", "off"],
+            Field(description="中文转写要不要标点：auto（默认：自动模式快、点名引擎时准）/ on（准，慢 30 秒）/ off（快，没有标点）"),
+        ] = "auto",
         tables: Annotated[
             Literal["auto", "on", "off"],
-            Field(description="PDF 表格识别：auto（页面有画线才识别，快）/ on（每页都识别，慢）/ off"),
+            Field(description="PDF 表格识别：auto（页面有竖线才识别，快）/ on（每页都识别，慢）/ off"),
         ] = "auto",
         images: Annotated[
             Literal["refs", "none"],
@@ -154,6 +158,7 @@ def build_server():
             asr=asr,
             asr_model=asr_model,
             asr_language=asr_language,
+            asr_punc=asr_punc,
             tables=tables,
             images=images,
             front_matter=front_matter,

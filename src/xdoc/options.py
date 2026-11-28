@@ -43,6 +43,8 @@ class ReadOptions:
     asr: str = "auto"               # auto | on | off
     asr_model: str | None = None    # 如 small / base / large-v3
     asr_language: str | None = None   # 语音识别语言（如 zh / en）；None = 自动识别
+    # auto（默认：自动模式求快，显式指定引擎时求准）/ on（带标点，慢 30 秒）/ off（快，没有标点）
+    asr_punc: str = "auto"
     images: str = "refs"            # refs | none
     front_matter: bool = True
     assets_dir: str | None = None

@@ -45,6 +45,9 @@ def cache_key(*, sha256: str, kind: str, options: Any, plugins: Iterable[str]) -
         # 转写语言会改变结果，必须进键；只对音视频有意义，其它类型的键保持不变
         "asr_language": (getattr(options, "asr_language", None)
                          if kind in ("audio", "video") else None),
+        # 有没有标点模型也会改变转写文本（有标点的版本多一整套标点）
+        "asr_punc": (getattr(options, "asr_punc", "on")
+                     if kind in ("audio", "video") else None),
         "images": getattr(options, "images", None),
         "assets": str(getattr(options, "assets_dir", None) or ""),
         "plugins": sorted(plugins),

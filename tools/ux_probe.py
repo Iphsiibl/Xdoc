@@ -112,6 +112,22 @@ def main() -> None:
     # 14) 非中文 Windows 编码下 --help 不能崩
     proc = cli("--help", env_extra={"PYTHONIOENCODING": "cp1252"})
     show("14. cp1252 编码下 --help", f"exit={proc.returncode}（期望 0）\n{proc.stdout.strip()[:200]}")
+    # 15) 渐进式输出：正文之前先给目录
+    doc = read_document(ROOT / "samples" / "pdf" / "en_dummy.pdf", ReadOptions())
+    toc = doc.meta.get("toc") or []
+    show("15. front-matter 里的目录（toc）",
+         f"{len(toc)} 条\n" + "\n".join(toc[:8]))
+    # 16) 目录并行：跟串行读出来的结果一致
+    serial = read_document(ROOT / "samples" / "pdf", ReadOptions())
+    parallel = read_document(ROOT / "samples" / "pdf", ReadOptions())
+    show("16. 目录并行解析",
+         f"file_count={parallel.meta.get('file_count')}  "
+         f"与串行一致={parallel.meta.get('files') == serial.meta.get('files')}")
+    # 17) ASR 标点开关：auto 不要标点（快），点名引擎要标点（准）
+    from xdoc.converters.media import _asr_payload
+    show("17. ASR 标点开关",
+         f"auto 模式 punc={_asr_payload('funasr', 'a.wav', ReadOptions(asr='auto'))['punc']}（期望 False）\n"
+         f"--asr zh  punc={_asr_payload('funasr', 'a.wav', ReadOptions(asr='zh'))['punc']}（期望 True）")
 
     print("".join(OUT))
 

@@ -13,17 +13,17 @@
 
 | 样本 | xdoc token | anymd token | xdoc 8-gram | xdoc 耗时 | anymd 耗时 | 谁更全 |
 | --- | --- | --- | --- | --- | --- | --- |
-| pdf/en_arxiv_attention.pdf | 1.0000 | 0.9836 | 0.9831 | 2.75s | 2.01s | **xdoc** |
-| pdf/en_dummy.pdf | 1.0000 | 1.0000 | 1.0000 | 0.01s | 1.79s | 持平 |
-| pdf/en_paper_tracemonkey.pdf | 1.0000 | 0.9607 | 0.9783 | 3.21s | 1.67s | **xdoc** |
-| pdf/zh_wiki_microsoft.pdf | 1.0000 | 0.8768 | 0.9818 | 5.41s | 2.58s | **xdoc** |
-| pdf/zh_wiki_python.pdf | 1.0000 | 0.9012 | 0.9632 | 15.05s | 3.18s | **xdoc** |
-| docx/calibre_demo.docx | 1.0000 | 0.9816 | 0.9613 | 0.10s | 2.28s | **xdoc** |
-| pptx/poi_SampleShow.pptx | 1.0000 | 1.0000 | 0.9688 | 0.02s | 2.14s | 持平 |
-| pptx/pythonpptx_test.pptx | 1.0000 | 1.0000 | 1.0000 | 0.02s | 2.12s | 持平 |
-| xlsx/microsoft_sample.xlsx | 1.0000 | 0.8552 | 0.9996 | 0.30s | 2.70s | **xdoc** |
-| html/en_wikipedia.html | 0.9757 | 0.8696 | 0.9039 | 0.16s | 2.18s | **xdoc** |
-| html/zh_wikipedia.html | 0.9927 | 0.9115 | 0.9298 | 0.86s | 2.50s | **xdoc** |
+| pdf/en_arxiv_attention.pdf | 1.0000 | 0.9836 | 0.9833 | 1.44s | 2.69s | **xdoc** |
+| pdf/en_dummy.pdf | 1.0000 | 1.0000 | 1.0000 | 0.01s | 1.98s | 持平 |
+| pdf/en_paper_tracemonkey.pdf | 1.0000 | 0.9607 | 0.9783 | 2.71s | 2.17s | **xdoc** |
+| pdf/zh_wiki_microsoft.pdf | 1.0000 | 0.8768 | 0.9819 | 3.40s | 2.74s | **xdoc** |
+| pdf/zh_wiki_python.pdf | 1.0000 | 0.9012 | 0.9632 | 5.13s | 3.41s | **xdoc** |
+| docx/calibre_demo.docx | 1.0000 | 0.9816 | 0.9613 | 0.11s | 2.07s | **xdoc** |
+| pptx/poi_SampleShow.pptx | 1.0000 | 1.0000 | 0.9688 | 0.02s | 2.06s | 持平 |
+| pptx/pythonpptx_test.pptx | 1.0000 | 1.0000 | 1.0000 | 0.02s | 1.79s | 持平 |
+| xlsx/microsoft_sample.xlsx | 1.0000 | 0.8552 | 0.9998 | 0.23s | 1.88s | **xdoc** |
+| html/en_wikipedia.html | 0.9768 | 0.8696 | 0.9039 | 0.18s | 1.85s | **xdoc** |
+| html/zh_wikipedia.html | 0.9927 | 0.9115 | 0.9298 | 0.62s | 1.58s | **xdoc** |
 
 合计：xdoc 更全 8 个、持平 3 个、落后 0 个。
 

@@ -39,14 +39,16 @@ xdoc setup                  # 体检 + 打印接给 Agent 的方法（只读，�
 xdoc doctor
 ```
 
-输出分四段：
+输出分六段：
 
 | 段 | 内容 | 缺失怎么办 |
 | --- | --- | --- |
-| **核心依赖** | `pymupdf`(PDF)、`docx`(DOCX)、`pptx`(PPTX)、`openpyxl`(XLSX)、`bs4`(HTML)、`markdownify`(HTML→MD)、`mcp`(MCP 服务) | 全部随包安装；若显示 `[缺失]`，重装一次 xdoc。**核心依赖有缺失时 doctor 返回 exit 1** |
-| **外部工具（可选）** | LibreOffice（旧版 `.doc/.ppt/.xls`）、ffmpeg（视频抽帧） | 缺失只影响对应格式，不影响其它能力 |
-| **插件（可选）** | `ocr` / `asr` / `asr-zh` / `media` 的安装状态 | 按需安装，见 [§4](#4-插件按需下载随插随用可卸载) |
-| **解析缓存** | 缓存目录、条目数与占用 | 太大就 `xdoc cache clear`（见 [§3.7](#37-解析缓存重复读几乎瞬时)） |
+| **核心依赖** | `pymupdf`(PDF)、`docx`(DOCX)、`pptx`(PPTX)、`openpyxl`(XLSX)、`bs4`(HTML)、`markdownify`(HTML→MD)、`mcp`(MCP 服务) | 全部随包安装；若显示 `[缺失]`，重装一次 **xdoc-tools**（`uv tool install --force xdoc-tools`）。**核心依赖有缺失时 doctor 返回 exit 1** |
+| **外部工具（可选）** | LibreOffice（旧版 `.doc/.ppt/.xls`）、ffmpeg（视频抽帧） | 缺失只影响对应格式；ffmpeg 缺失会直接给出 `xdoc plugin add media` |
+| **插件（可选）** | `ocr` / `asr` / `asr-zh` / `media` 的安装状态、估计体积与**实际磁盘占用** | 按需安装，见 [§4](#4-插件按需下载随插随用可卸载) |
+| **命令是否可用** | 当前 shell 里 `xdoc` 能不能直接敲 | 不在 PATH 时会告诉你可执行文件在哪个目录，或让你用 `python -m xdoc.cli` |
+| **解析缓存** | 缓存目录、条目数、占用，以及「分两层存」的说明 | 太大就 `xdoc cache clear`（见 [§3.7](#37-解析缓存重复读几乎瞬时)） |
+| **终端编码** | 当前终端是不是 UTF-8 | 不是就换 UTF-8 终端，或在 Windows 上 `chcp 65001`（见 [§1.3](#13-windows-注意事项)） |
 
 结尾会明确告诉你结论：`核心依赖齐全，基础能力可用。`
 
@@ -98,7 +100,8 @@ xdoc --version
 | `--asr` | `auto` / `on` / `off` / `zh` / `whisper` | `auto` | `zh`=中文 FunASR；`whisper`=通用 faster-whisper；`auto`=自动挑引擎（详见 §4.3） |
 | `--asr-model` | 如 `small` / `large-v3` | 不传=引擎默认 | 不传时 `asr` 用 `small`；`asr-zh` 用 Paraformer-zh |
 | `--asr-language` | 如 `zh` / `en` | 不传=自动识别 | 语音转写的语言（中文音频写 `zh` 更稳） |
-| `--tables` | `auto` / `on` / `off` | `auto` | PDF 表格识别：`auto`=只对有画线的页识别（快）；`on`=逐页识别（慢）；`off`=不识别 |
+| `--asr-punc` | `auto` / `on` / `off` | `auto` | 中文转写要不要标点：`auto`=自动模式求快、点名引擎时求准；`on`=要标点（多等 30 秒）；`off`=不要标点（快 30 秒，字照样准） |
+| `--tables` | `auto` / `on` / `off` | `auto` | PDF 表格识别：`auto`=只对有竖线的页识别（快）；`on`=逐页识别（慢）；`off`=不识别 |
 | `--no-images` | 开关 | 关 | 不提取内嵌图片（更快、更小输出） |
 | `--no-front-matter` | 开关 | 关 | 不输出元数据头（只对 `markdown` 有意义，`text`/`json` 本来就没有 front-matter） |
 | `--no-cache` | 开关 | 关 | 跳过解析缓存，强制重新解析 |
@@ -181,6 +184,7 @@ Windows 上客户端不解析 PATH 时写绝对路径：
 | `asr` | string | `auto` | `auto` / `on` / `off` / `zh` / `whisper` |
 | `asr_model` | string? | 无 | 模型名；不传时 `asr` 用 `small`、`asr-zh` 用 Paraformer-zh |
 | `asr_language` | string? | 无 | 语音转写语言，如 `zh` / `en`；省略则自动识别 |
+| `asr_punc` | string | `auto` | 中文转写要不要标点：`auto` / `on` / `off` |
 | `tables` | string | `auto` | `auto` / `on` / `off` |
 | `images` | string | `refs` | `refs`=图片抽到资产目录并在正文给路径；`none`=不抽 |
 | `front_matter` | bool | `true` | 是否带元数据头 |
@@ -237,7 +241,12 @@ assets_root: C:\Users\me\.local\share\xdoc\assets
 | 读目录时 | `file_count`（读到几个文件）、`files`（每个文件的类型与体量）、`skipped`（哪些文件被跳过、为什么） |
 | `outline` 模式 | `outline: true`，表示这次只给结构 |
 | 检索时 | `search:` 给出 `pattern` / `total`（命中总数）/ `returned`（本次返回）/ `truncated`（是否被 limit 截断） |
+| 正常读取 | `toc:` 给出这份文档的目录（每节一行：锚点 + 标题），**先看结构再决定读哪一段** |
 | 截断时 | `truncated: true` 与 `next_cursor` 会出现在这里 |
+
+`toc` 是给人（或 Agent）看的「先看结构」：它只占几十行，读长文档时先扫一眼 `toc`，
+再用 `--pages` 或 `cursor` 精确读要的那一段，不用把全文塞进上下文。
+`--outline` 模式则只给结构、完全不给正文；`toc` 是**全文 + 一份目录**。
 
 用 `--no-front-matter` 或 `front_matter=false` 可关闭（只对 `markdown` 有效；`text` / `json` 本身就没有 front-matter）。
 
@@ -359,6 +368,11 @@ xdoc read ./docs --outline
 
 > `--pages` 在目录模式下对**每个文件分别生效**（如 `--pages 1-2` = 每个文件的前两页）；token 预算与 `cursor` 则作用在合并后的整份文档上。
 
+- **目录会并行解析**：一个目录里有多个要解析的文件时，用进程池同时解析（每个文件一个进程），
+  比一个一个读快。实测 7 个 PDF 的目录：串行 19.1s → 并行 13.8s（1.4×）。
+  PyMuPDF 不释放线程锁，所以用进程而不是线程；已经命中缓存的文件不占进程。
+  不想并行时设环境变量 `XDOC_NO_PARALLEL=1`。
+
 ### 3.7 解析缓存（重复读几乎瞬时）
 
 第一次读某个文件会解析并把结果缓存起来，之后同样的读法直接命中：
@@ -454,10 +468,13 @@ xdoc plugin remove ocr        # 卸载（uninstall 是同义词）
 
 | `--asr` | 行为 |
 | --- | --- |
-| `auto`（默认） | 优先 `asr`（faster-whisper）；若它识别出是中文、且装了 `asr-zh`，则**用中文引擎再转写一遍**（中文精度更高） |
+| `auto`（默认） | 优先 `asr`（faster-whisper）；**同时**在后台起一个中文引擎，判断出是中文就用中文结果（更准），不是中文就把后台那个停掉，不白等它加载模型 |
 | `zh` | 直接用 `asr-zh`（FunASR），没装就回落 `asr` |
 | `whisper` | 直接用 `asr`（faster-whisper） |
 | `off` | 不转写，只给媒体元信息 |
+
+> `auto` 模式下两个引擎**并行**跑，所以中文音频不用先等通用引擎跑完再跑中文引擎。
+> 实测（13 秒的中文官方样例）：改之前 66s，改之后 **24.7s**。
 
 ---
 
@@ -471,7 +488,11 @@ xdoc read paper.pdf
 
 - 页级锚点 `<!-- page N -->`，标题按字号推断层级，**有画线的表格**还原成 Markdown 表格。
 - 只关心几页：`xdoc read paper.pdf --pages 1-5,8`
-- 表格没识别出来（页面上没有画线）：`xdoc read paper.pdf --tables on`（更慢，会逐页按画线识别）。
+- 表格没识别出来（页面上没有竖线）：`xdoc read paper.pdf --tables on`（更慢，会逐页按画线识别）。
+- **默认只对「有竖线」的页做表格识别**：实测 119 页里真正含表的只有 10 页，
+  而逐页试错的代价很高（一张 64 页的 PDF，光表格识别就要 8.5s）。
+  改成先看画线再决定要不要认表后，同样的文件 **13.8s → 4.6s**，输出逐字节相同。
+  页面只有横线（没有竖线分列）时本来也认不出表格，所以不会漏。
 
 ### 5.2 扫描 PDF / 图片（OCR）
 
@@ -492,6 +513,7 @@ xdoc plugin add asr         # 或 asr-zh
 xdoc read talk.mp3                     # auto
 xdoc read talk.mp3 --asr zh            # 强制中文引擎
 xdoc read talk.mp3 --asr-model large-v3
+xdoc read talk.mp3 --asr-punc off      # 不要标点，快 30 秒
 ```
 
 输出形如（真实输出）：
@@ -509,6 +531,11 @@ asr: installed plugin
 ```
 
 - 时间戳来自模型本身（中文用逐字时间戳对齐），实测误差 ≤ 1s。
+- **要标点还是要速度**：`--asr-punc` 决定要不要加载标点模型。
+  标点模型要加载 1.1GB、多等 30 秒；不要它也**不影响认字的准确度**
+  （实测同一段中文：带标点错字率 0.00，不要标点 0.045——差的只是句末那个句号）。
+  默认 `auto`：自动模式求快（不要标点），显式点名引擎（`--asr zh`）时求准（要标点）。
+- 实测（13 秒的中文官方样例）：`auto` **24.7s**、`--asr zh` 50.5s、`--asr-punc off` 19.4s；英文样例 `auto` 12.6s。
 - 中文首调要加载约 1GB 模型（CPU），单次 30–60s；之后很快。
 - 没装插件时不会报错，只给媒体元信息（时长、编码）。
 

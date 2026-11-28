@@ -55,21 +55,26 @@ def _front_matter(doc: Document) -> str:
             continue
         if isinstance(value, dict):
             # 字典用 JSON 流式写法（YAML 的 flow mapping，JSON 是它的子集）
-            rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            lines.append(f"{key}: {json.dumps(value, ensure_ascii=False, separators=(',', ':'))}")
         elif isinstance(value, (list, tuple)):
+            if value and all(isinstance(item, str) for item in value):
+                # 纯文字列表（如文档地图 toc）逐行写，长列表也读得下去
+                lines.append(f"{key}:")
+                for item in value:
+                    lines.append(f"  - {_yaml_scalar(item)}")
+                continue
             if any(isinstance(item, dict) for item in value):
                 # 列表里带结构（如目录模式的 files）就用 JSON 流式写法，YAML 也能解析
-                rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+                lines.append(f"{key}: {json.dumps(value, ensure_ascii=False, separators=(',', ':'))}")
             else:
-                rendered = "[" + ", ".join(_yaml_scalar(v) for v in value) + "]"
+                lines.append(f"{key}: [" + ", ".join(_yaml_scalar(v) for v in value) + "]")
         else:
-            rendered = _yaml_scalar(value)
-        lines.append(f"{key}: {rendered}")
+            lines.append(f"{key}: {_yaml_scalar(value)}")
     lines.append("---")
     return "\n".join(lines)
 
 
-def _anchor_text(section: Section) -> str:
+def anchor_text(section: Section) -> str:
     """锚点正文，例如 page 3 / sheet: 汇总 / t=00:00:12。"""
     kind, _, value = section.anchor.partition(":")
     template = _ANCHOR_STYLE.get(kind)
@@ -79,7 +84,7 @@ def _anchor_text(section: Section) -> str:
 
 
 def _anchor_line(section: Section) -> str:
-    text = _anchor_text(section)
+    text = anchor_text(section)
     if section.file:
         # 目录模式：标明这一节来自哪个文件
         return f"<!-- file:{section.file} {text} -->"

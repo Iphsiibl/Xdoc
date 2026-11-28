@@ -80,14 +80,26 @@ def _asr_candidates(manager: PluginManager, options: ReadOptions) -> list[tuple[
     return [(name, backend) for name, backend in order if manager.is_installed(name)]
 
 
-def _run_asr(manager: PluginManager, plugin: str, backend: str, audio: Path,
-             options: ReadOptions) -> dict:
-    payload = {
+def _asr_payload(backend: str, audio: Path, options: ReadOptions) -> dict:
+    # 标点模型要加载 1.1GB、慢 30 秒，但转写更准。
+    # auto 模式默认不要标点（快，字照样准）；显式点名引擎（--asr zh）时默认要标点。
+    mode = (options.asr_punc or "auto").strip().lower()
+    if mode == "auto":
+        punc = (options.asr or "auto").strip().lower() != "auto"
+    else:
+        punc = mode == "on"
+    return {
         "audio": str(audio),
         "model": options.asr_model or "small",
         "language": options.asr_language,
         "backend": backend,
+        "punc": punc,
     }
+
+
+def _run_asr(manager: PluginManager, plugin: str, backend: str, audio: Path,
+             options: ReadOptions) -> dict:
+    payload = _asr_payload(backend, audio, options)
     notify(options, f"正在用 {plugin} 做语音转写（模型加载 + 转写，可能要几十秒）…")
     result = manager.run_worker(plugin, payload)
     if result.get("error"):
@@ -100,15 +112,29 @@ def _transcribe(manager: PluginManager, audio: Path, options: ReadOptions) -> li
     if not candidates:
         return []
     plugin, backend = candidates[0]
-    result = _run_asr(manager, plugin, backend, audio, options)
-
-    language = str(result.get("language") or "")
     want = (options.asr or "auto").strip().lower()
-    if want == "auto" and language.startswith("zh"):
-        # 自动模式下检测到中文：如果装了中文引擎，再用它转写一遍（中文精度更高）
-        zh = next((c for c in candidates if c[0] == "asr-zh"), None)
-        if zh and plugin != "asr-zh":
-            result = _run_asr(manager, "asr-zh", "funasr", audio, options)
+    zh = next((c for c in candidates if c[0] == "asr-zh"), None)
+
+    if want == "auto" and zh and plugin != "asr-zh":
+        # 并行：中文引擎要先加载 1GB 多的模型，让它先跑起来；
+        # 外语引擎同时跑——它十来秒就出结果，能判断这音频是不是中文。
+        # 不是中文就把中文引擎停掉，不白等它把模型加载完。
+        handle = manager.start_worker("asr-zh", _asr_payload("funasr", audio, options))
+        try:
+            result = _run_asr(manager, plugin, backend, audio, options)
+            language = str(result.get("language") or "")
+            if language.startswith("zh"):
+                notify(options, "检测到中文，用中文引擎再转写一遍（更准）…")
+                result = handle.wait()
+                if result.get("error"):
+                    raise XdocError(f"ASR 失败: {result['error']}")
+            else:
+                handle.terminate()
+        except BaseException:
+            handle.terminate()
+            raise
+    else:
+        result = _run_asr(manager, plugin, backend, audio, options)
     return result.get("segments") or []
 
 

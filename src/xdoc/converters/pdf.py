@@ -7,8 +7,10 @@
   * `page.get_text("dict")` 一次即可还原纯文本，不要再调 `get_text("text")`（省 ~1/3 时间）。
   * `page.find_tables()` 默认会跑 ONNX 版面模型：64 页 37s；显式 `use_layout=False`
     只要 12s，而且检出的表格更多（9 vs 6）→ 一律关掉版面模型。
-  * 表格识别只在"页面上确实有画线"时才做：无框线表格本来就识别不出来，
-    画线统计是几乎零成本的精确门控（实测召回 100%）。
+  * 表格识别只在"页面上有竖线"时才做：lines_strict 靠竖线分列，没有竖线的页面
+    永远识别不出表格（实测 119 页里真正有表的只有 10 页，每页都 ≥4 条竖线，
+    而"只有横线"的页面 find_tables 一张表也找不到）。竖线统计是几乎零成本的
+    精确门控（实测召回 100%，且 64 页 PDF 的抽表耗时 8.5s → 0.6s）。
 """
 
 from __future__ import annotations
@@ -91,8 +93,8 @@ def _page_plain_text(page_dict: dict) -> str:
 def _ruling_stats(page) -> tuple[int, int]:
     """统计页面上的水平线/垂直线数量（表格边框）。
 
-    用于"这一页有没有可能存在表格"的精确门控：lines_strict 策略要求真实画线，
-    没有画线的页面跑 find_tables 也不会有结果，跳过即可。
+    用于"这一页有没有可能存在表格"的精确门控：lines_strict 策略靠竖线分列，
+    没有竖线的页面跑 find_tables 也不会有结果，跳过即可。
     """
     horizontal = vertical = 0
     try:
@@ -245,8 +247,11 @@ def convert(path: Path, options: ReadOptions, assets: AssetStore) -> Document:
         table_blocks: list[Block] = []
         table_boxes: list[tuple[tuple, str]] = []
         if mode != "off":
-            horizontal, vertical = _ruling_stats(page)
-            if mode == "on" or horizontal or vertical:
+            _, vertical = _ruling_stats(page)
+            # 门控：只有竖线的页面才可能有表格（lines_strict 靠竖线分列）。
+            # 实测 119 页里真正有表的 10 页全都 ≥4 条竖线，而只有横线的页面
+            # 一张表也识别不出来 → 跳过它们不丢内容，却省下大部分抽表时间。
+            if mode == "on" or vertical:
                 table_blocks, table_boxes = _table_blocks(page, options)
                 table_count += len(table_blocks)
 

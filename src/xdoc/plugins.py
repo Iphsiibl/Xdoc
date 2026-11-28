@@ -14,9 +14,11 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .errors import PluginError
 
@@ -86,6 +88,78 @@ FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 
 def default_plugin_root() -> Path:
     return Path.home() / ".local" / "share" / "xdoc" / "plugins"
+
+
+def _parse_worker_output(name: str, returncode: int, stdout: bytes, stderr: bytes) -> dict:
+    """worker 跑完之后的统一结果处理：成功给 JSON，失败给能看懂的原因。"""
+    text = stdout.decode("utf-8", "replace").strip()
+    err_text = stderr.decode("utf-8", "replace")[-1200:].strip()
+    if returncode != 0:
+        detail = err_text
+        if text:
+            try:
+                payload = json.loads(text.splitlines()[-1])
+                if isinstance(payload, dict) and payload.get("error"):
+                    detail = f"{payload['error']}\n{err_text}".strip()
+            except (json.JSONDecodeError, IndexError):
+                detail = f"{text[-600:]}\n{err_text}".strip()
+        raise PluginError(f"插件 {name} 执行失败（exit {returncode}）: {detail}")
+    try:
+        return json.loads(text.splitlines()[-1]) if text else {}
+    except json.JSONDecodeError as exc:
+        raise PluginError(f"插件 {name} 返回无法解析的结果: {text[:400]}") from exc
+
+
+class WorkerHandle:
+    """已经启动、还没结束的插件 worker。
+
+    用它是为了让两个引擎能并行跑：慢的那个先启动（它要加载 1GB 多的模型），
+    快的那个同时跑；确认用不上慢的那个时就 terminate() 掉，不白等它。
+    """
+
+    def __init__(self, name: str, proc: subprocess.Popen,
+                 out: Any, err: Any) -> None:
+        self.name = name
+        self._proc = proc
+        self._out = out
+        self._err = err
+
+    def wait(self, timeout: int = 1800) -> dict:
+        try:
+            self._proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            self.terminate()
+            raise PluginError(f"插件 {self.name} 执行超时（>{timeout}s）") from exc
+        stdout = self._read(self._out)
+        stderr = self._read(self._err)
+        return _parse_worker_output(self.name, self._proc.returncode, stdout, stderr)
+
+    def terminate(self) -> None:
+        """不等了，把这个 worker 停掉。"""
+        if self._proc.poll() is None:
+            try:
+                self._proc.kill()
+            except OSError:
+                pass
+            try:
+                self._proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:  # pragma: no cover
+                pass
+        self._close()
+
+    def _read(self, handle: Any) -> bytes:
+        try:
+            handle.seek(0)
+            return handle.read()
+        except (OSError, ValueError):  # pragma: no cover
+            return b""
+
+    def _close(self) -> None:
+        for handle in (self._out, self._err):
+            try:
+                handle.close()
+            except OSError:  # pragma: no cover
+                pass
 
 
 class PluginManager:
@@ -270,6 +344,12 @@ class PluginManager:
         return Path(found) if found else None
 
     def run_worker(self, name: str, payload: dict, *, timeout: int = 1800) -> dict:
+        """跑一个 worker，等它出结果。"""
+        handle = self.start_worker(name, payload)
+        return handle.wait(timeout)
+
+    def start_worker(self, name: str, payload: dict) -> "WorkerHandle":
+        """启动一个 worker 但不等它——用来让两个引擎并行跑。"""
         spec = PLUGINS.get(name)
         if spec is None:
             raise PluginError(f"未知插件: {name}")
@@ -286,33 +366,29 @@ class PluginManager:
             raise PluginError(f"插件 {name} 的 worker 缺失: {worker}")
 
         env = self._plugin_env(name)
+        # 输出走临时文件而不是管道：worker 可能往 stderr 刷很多日志，
+        # 管道缓冲区满了它就会卡住，等它的主线程也跟着卡住。
+        out = tempfile.TemporaryFile()
+        err = tempfile.TemporaryFile()
         try:
-            proc = subprocess.run(
+            proc = subprocess.Popen(
                 [str(python), str(worker)],
-                input=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-                capture_output=True,
-                timeout=timeout,
+                stdin=subprocess.PIPE,
+                stdout=out,
+                stderr=err,
                 env=env,
             )
-        except subprocess.TimeoutExpired as exc:
-            raise PluginError(f"插件 {name} 执行超时（>{timeout}s）") from exc
-
-        stdout = proc.stdout.decode("utf-8", "replace").strip()
-        if proc.returncode != 0:
-            stderr = proc.stderr.decode("utf-8", "replace")[-1200:].strip()
-            detail = stderr
-            if stdout:
-                try:
-                    payload = json.loads(stdout.splitlines()[-1])
-                    if isinstance(payload, dict) and payload.get("error"):
-                        detail = f"{payload['error']}\n{stderr}".strip()
-                except (json.JSONDecodeError, IndexError):
-                    detail = f"{stdout[-600:]}\n{stderr}".strip()
-            raise PluginError(f"插件 {name} 执行失败（exit {proc.returncode}）: {detail}")
+        except OSError as exc:
+            out.close()
+            err.close()
+            raise PluginError(f"插件 {name} 启动失败: {exc}") from exc
         try:
-            return json.loads(stdout.splitlines()[-1]) if stdout else {}
-        except json.JSONDecodeError as exc:
-            raise PluginError(f"插件 {name} 返回无法解析的结果: {stdout[:400]}") from exc
+            proc.stdin.write(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+            proc.stdin.close()
+        except (BrokenPipeError, OSError):
+            # worker 可能已经自己退出了，错误由 wait() 报
+            pass
+        return WorkerHandle(name, proc, out, err)
 
 
 def _collect_ffmpeg_tools(directory: Path) -> None:

@@ -1,4 +1,4 @@
-# xdoc 发布记录（0.1.0 / 0.1.1）
+# xdoc 发布记录（0.1.0 / 0.1.1 / 0.2.0）
 
 日期：2026-11-28（发布日）
 包名：`xdoc-tools`（PyPI，MIT）—— 命令仍是 `xdoc`
@@ -7,6 +7,18 @@
 > **为什么叫 `xdoc-tools`**：PyPI 拒绝 `xdoc` 这个名字（`The name 'xdoc' isn't allowed`）——
 > 它与已存在的 `xdocx` / `xdocs` 太相似，触发防抢注规则。`xdoc-tools`（PyPI 上显示为 XdocTools）
 > 可用；**安装后的命令不变，仍是 `xdoc`**。
+
+---
+
+## 0.2.0（待发）—— 检索、并行、渐进式目录、缓存分层
+
+| 项 | 值 |
+| --- | --- |
+| 版本 | 0.2.0（版本号已改：pyproject.toml + `src/xdoc/__init__.py`，`uv lock` 已同步） |
+| 触发方式 | 与 0.1.1 相同：`git tag v0.2.0 && git push origin v0.2.0` → `publish.yml` 自动发布 |
+| 输出契约变化 | front-matter 新增 `toc:`（目录）；`files` 新增 `title`；`--asr-punc` 新增；MCP `read` 新增 `asr_punc` 参数 |
+| 保真指标 | 与 0.1.1 持平（token_recall 全 1.0000；中文 ASR CER 0.0000——验收走显式 `--asr zh`，仍是带标点那条路） |
+| 本机复验 | `uv run --extra dev pytest` 125 个全过；`tools/ux_probe.py` 17 项全过；`tools/acceptance.py --runs 3` exit 0 |
 
 ---
 

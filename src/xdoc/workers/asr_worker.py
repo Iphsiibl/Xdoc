@@ -53,6 +53,32 @@ def _transcribe_faster_whisper(audio: str, model: str, language: str | None) -> 
 
 _PUNCT = "，。！？；、,.!?;:：…"
 
+_CJK_RANGE = ("一", "鿿")
+
+
+def _is_cjk(ch: str) -> bool:
+    """是不是常用汉字（用于判断空格该不该去掉）。"""
+    return len(ch) == 1 and _CJK_RANGE[0] <= ch <= _CJK_RANGE[1]
+
+
+def _join_cjk(text: str) -> str:
+    """把「欢 迎 大 家」拼成「欢迎大家」。
+
+    没有标点模型时 FunASR 输出的汉字之间带空格（它只负责认字，不管断句）。
+    标点模型除了加标点还顺带拼字，那一步我们自己来做，省下加载 1.1GB 模型的 30 秒。
+    """
+    out: list[str] = []
+    prev_cjk = False
+    for index, ch in enumerate(text):
+        if ch.isspace() and prev_cjk:
+            # 只有「汉字 空格 汉字」中间的空格才去掉；汉字与英文之间的空格要留着
+            nxt = text[index + 1] if index + 1 < len(text) else ""
+            if _is_cjk(nxt):
+                continue
+        out.append(ch)
+        prev_cjk = _is_cjk(ch)
+    return "".join(out)
+
 
 def _align_stamps(text: str, stamps: list) -> list[tuple[str, list | None]]:
     """把 FunASR 的 token 级时间戳对齐到字符。
@@ -140,26 +166,33 @@ def _funasr_segments(item: dict) -> list[dict]:
     return []
 
 
-def _transcribe_funasr(audio: str, model: str, language: str | None) -> dict:
+def _transcribe_funasr(audio: str, model: str, language: str | None,
+                       punc: bool = True) -> dict:
     from funasr import AutoModel
 
     # 关键：FunASR 的 AutoModel 传别名（"paraformer-zh"）会去 modelscope hub
     # 查仓库列表——运行期必须离线，所以优先传本地已下载的快照目录。
     asr_path = _local_snapshot("iic/speech_seaco_paraformer_large_asr_nat-zh-cn-16k-common-vocab8404-pytorch")
     vad_path = _local_snapshot("iic/speech_fsmn_vad_zh-cn-16k-common-pytorch")
-    punc_path = _local_snapshot("iic/punc_ct-transformer_cn-en-common-vocab471067-large")
+    punc_path = _local_snapshot("iic/punc_ct-transformer_cn-en-common-vocab471067-large") if punc else None
     if not asr_path:
         raise RuntimeError(
             "本地没有 paraformer-zh 模型快照（%s），请先运行 `xdoc plugin add asr-zh`" % _MODELSCOPE_CACHE_HINT())
 
+    # 不带标点模型时，FunASR 输出的汉字之间带空格（它自己不做断句）。
+    # 标点模型除了加标点，还顺带把字拼起来——这一份我们自己拼，省 30 秒。
     engine = AutoModel(model=asr_path, vad_model=vad_path or "fsmn-vad",
-                       punc_model=punc_path or "ct-punc", device="cpu",
-                       disable_pbar=True, disable_log=True)
+                       punc_model=(punc_path or "ct-punc") if punc else None,
+                       device="cpu", disable_pbar=True, disable_log=True)
     result = engine.generate(input=audio, batch_size_s=300)
     out: list[dict] = []
     for item in (result or []):
-        out.extend(_funasr_segments(item))
-    return {"segments": out, "language": "zh", "model": model}
+        segments = _funasr_segments(item)
+        if not punc:
+            for seg in segments:
+                seg["text"] = _join_cjk(seg["text"])
+        out.extend(segments)
+    return {"segments": out, "language": "zh", "model": model, "punc": punc}
 
 
 def main() -> int:
@@ -168,12 +201,13 @@ def main() -> int:
     model = payload.get("model") or "small"
     language = payload.get("language")
     backend = payload.get("backend") or "faster-whisper"
+    punc = payload.get("punc", True)
     if not audio:
         print(json.dumps({"error": "缺少 audio 路径"}, ensure_ascii=False))
         return 1
     try:
         if backend == "funasr":
-            result = _transcribe_funasr(audio, model, language)
+            result = _transcribe_funasr(audio, model, language, punc=bool(punc))
         else:
             result = _transcribe_faster_whisper(audio, model, language)
     except Exception as exc:  # pragma: no cover

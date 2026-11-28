@@ -26,7 +26,8 @@ xdoc setup                 # 体检 + 打印接给 Agent 的方法（只读，�
 - **入口**：MCP 工具 `read` 与同源 CLI `xdoc read` 都走 `api.read_document`。
 - **内核**：`detect` 判类型 → `converters/*` 忠实解析 → 中间表示 `Document / Section / Block`。
 - **出口**：`max_tokens` 预算切分 + `cursor` 续读，渲染成 Markdown / 纯文本 / JSON。
-- **解析缓存**：按文件内容 sha256 + 解析选项命中缓存，重复读同一份文件几乎瞬时（实测 2.49s → 0.02s）；缓存键不含页码筛选，所以切页不用重新解析；插件按需进键，装了 ffmpeg 也不会让读过的 PDF、Word 全部失效。
+- **解析缓存**：按文件内容 sha256 + 解析选项命中缓存，重复读同一份文件几乎瞬时（实测 2.49s → 0.02s）；缓存键不含页码筛选，所以切页不用重新解析；插件按需进键，装了 ffmpeg 也不会让读过的 PDF、Word 全部失效；PDF 分「基础解析 + OCR 增强」两层存，装完 OCR 插件不用整份重解析（15s → 0.47s）。
+- **目录并行**：一个目录里的多个文件用进程池同时解析（实测 7 个 PDF：19.1s → 13.8s）。
 - **可选插件**：OCR / ASR / ffmpeg 跑在隔离 venv 里；图片与抽帧落到资产目录。
 
 📖 **完整使用手册**（安装、参数表、输出契约、插件、按任务查、故障排查）→ [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
@@ -94,7 +95,7 @@ Windows 上若客户端不解析 PATH，写绝对路径：`"command": ["C:\\User
 | `pages` | 页/幻灯片/表范围，如 `1-5,8` |
 | `outline` | 只要结构不要正文（标题 + 锚点），适合先摸清文档再定点读 |
 | `grep` / `grep_regex` / `grep_context` / `grep_limit` | 只返回包含关键词的片段（默认字面匹配、忽略大小写） |
-| `ocr` / `asr` / `asr_model` / `asr_language` / `tables` / `images` / `front_matter` | 感知与渲染开关，取值见下表与手册 |
+| `ocr` / `asr` / `asr_model` / `asr_language` / `asr_punc` / `tables` / `images` / `front_matter` | 感知与渲染开关，取值见下表与手册 |
 
 推荐的省 token 四步法：**`read(path, outline=true)` 看结构 → `read(path, grep="关键词")` 只取命中处 → `read(path, pages="7-9")` 取正文 → `read(path, cursor=…)` 续读**。
 
@@ -116,7 +117,8 @@ xdoc read ./docs --outline                # 读整个目录：合并成一份，
 xdoc grep "Transformer" book.pdf          # 检索：只给命中位置与片段
 xdoc grep "参考文献" ./docs --context 1    # 在整个目录里检索，带上下文行
 xdoc read talk.mp3 --asr-language zh      # 语音转写指定语言（zh / en）
-xdoc read paper.pdf --tables on           # 强制逐页做表格识别（默认 auto：只认有画线的）
+xdoc read talk.mp3 --asr-punc off         # 中文转写不要标点：快 30 秒，字照样准
+xdoc read paper.pdf --tables on           # 强制逐页做表格识别（默认 auto：只认有竖线的页）
 xdoc read paper.pdf --no-cache            # 跳过解析缓存，强制重新解析
 xdoc cache info                           # 看缓存占用
 xdoc cache clear                          # 清理解析缓存
@@ -155,6 +157,7 @@ sha256: ...
 - `cursor` 坐标始终相对完整文档，可连续续读（表格按行续，文本按字符续）。
 - front-matter 里的 `cache: hit|miss` 说明这次用的是解析缓存还是重新解析的。
 - 检索时 front-matter 里的 `search:` 给出命中总数与本次返回条数。
+- 正常读取时 front-matter 里还有 `toc:`——这份文档的目录（锚点 + 标题），**先扫一眼目录再决定读哪一段**。
 
 ## 离线与隐私
 
@@ -180,7 +183,7 @@ sha256: ...
 复现：`uv run python tools/acceptance.py --runs 3` → `docs/acceptance_results.json`，
 `uv run python tools/report.py` → `docs/ACCEPTANCE.md`。
 
-## 发布证据（0.1.0 / 0.1.1，2026-11-28，已发布到 PyPI）
+## 发布证据（0.1.0 / 0.1.1 已发布到 PyPI；0.2.0 为本版，待发）
 
 已发布：<https://pypi.org/project/xdoc-tools/>（包名 `xdoc-tools`，安装后命令仍是 `xdoc`）
 
@@ -188,6 +191,17 @@ sha256: ...
 | --- | --- | --- |
 | 0.1.0 | 本机 API token（`uv publish`） | 干净环境从 PyPI 安装 → `--version` → `doctor` 绿 → 真读 docx → `plugin list`，全 PASS |
 | 0.1.1 | **CI 自动发布**：推 `v0.1.1` 标签 → `publish.yml` 用 PyPI Trusted Publisher（OIDC）上传，仓库里不存任何 token | 同上（干净环境从 PyPI 安装复验），详见 [`docs/RELEASE.md`](docs/RELEASE.md) |
+| 0.2.0（本版） | 同上：推 `v0.2.0` 标签即自动发布 | 本机验收全过；保真指标与 0.1.1 持平 |
+
+0.2.0 相对 0.1.1 的变化（输出契约有变：front-matter 多了 `toc:`）：
+
+- `xdoc grep` 检索（CLI 与 MCP 共用），`read` 的 `grep*` 参数；
+- 读目录时**并行解析**，front-matter 的 `files` 多了 `title`；
+- 正常读取时 front-matter 多一张 `toc:` 目录（先看结构再读正文）；
+- PDF 表格识别改成「只对有竖线的页做」，64 页 PDF 从 13.8s 降到 4.6s，输出逐字节相同；
+- 缓存与插件解耦：装 OCR 插件不再让读过的 PDF 全部重解析（15s → 0.47s）；
+- 中文转写并行 + 标点可选：13 秒的中文音频从 66s 降到 24.7s；
+- `xdoc demo` / `xdoc setup` 打通首次上手；`xdoc doctor` 给出可执行的修复建议。
 
 `uv run python tools/release_check.py` 可重跑；下面是 0.1.0 时的实际输出：
 
